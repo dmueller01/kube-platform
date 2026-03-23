@@ -1,0 +1,14 @@
+type: valuesOnly
+project: platform-core
+
+# External Helm chart used for this values-only app.
+chart:
+  name: external-secrets
+  repoURL: https://charts.external-secrets.io
+  version: "2.1.0"
+
+# Helm release destination namespace.
+destinationNamespace: external-secrets
+
+# Which values file to apply from this directory.
+valuesFile: values.yaml
