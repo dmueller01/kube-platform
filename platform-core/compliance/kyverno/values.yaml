@@ -1,0 +1,40 @@
+kyverno:
+  reportsServer:
+    enabled: true
+    waitForReady: true
+    readinessTimeout: 300s
+
+  grafana:
+    enabled: false
+
+  existingImagePullSecrets: []
+
+  # AKS: Disable Admission Enforcer to prevent webhook modifications
+  # See: https://kyverno.io/docs/installation/platform-notes/#notes-for-aks-users
+  # config:
+  #   webhookAnnotations:
+  #     "admissions.enforcer/disabled": "true"
+
+  admissionController:
+    serviceMonitor:
+      enabled: false
+    podAnnotations:
+      "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+
+  reportsController:
+    serviceMonitor:
+      enabled: false
+    podAnnotations:
+      "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+
+  cleanupController:
+    serviceMonitor:
+      enabled: false
+    podAnnotations:
+      "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+
+  backgroundController:
+    serviceMonitor:
+      enabled: false
+    podAnnotations:
+      "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"

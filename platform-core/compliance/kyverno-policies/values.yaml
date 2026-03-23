@@ -1,0 +1,339 @@
+# Kyverno-policies base configuration
+# Bypass: Resources with label policy.kyverno.io/bypass: "true" are excluded by Kyverno
+
+kyverno-policies:
+  podSecurityStandard: restricted
+  validationFailureAction: Audit
+
+  policyExclude:
+    disallow-capabilities:
+      any:
+        - resources:
+            kinds:
+              - Pod
+              - DaemonSet
+            namespaces:
+              - kube-system
+
+    disallow-host-path:
+      any:
+        - resources:
+            kinds:
+              - Pod
+              - DaemonSet
+            namespaces:
+              - monitoring
+            selector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - alloy
+                    - alloy-receiver
+                    - alloy-logs
+                    - alloy-metrics
+                    - prometheus-node-exporter
+        - resources:
+            kinds:
+              - Pod
+              - DaemonSet
+            namespaces:
+              - kube-system
+
+    disallow-host-namespaces:
+      any:
+        - resources:
+            kinds:
+              - Pod
+            namespaces:
+              - monitoring
+            selector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - prometheus-node-exporter
+        - resources:
+            kinds:
+              - Pod
+              - DaemonSet
+            namespaces:
+              - kube-system
+
+    disallow-host-ports:
+      any:
+        - resources:
+            kinds:
+              - Pod
+            namespaces:
+              - monitoring
+            selector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - prometheus-node-exporter
+        - resources:
+            kinds:
+              - Pod
+              - DaemonSet
+            namespaces:
+              - kube-system
+
+    disallow-privileged-containers:
+      any:
+        - resources:
+            kinds:
+              - Pod
+              - DaemonSet
+            namespaces:
+              - logging
+            selector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - k8s-events-to-graylog-shipper
+                    - service-logs-to-graylog-shipper
+        - resources:
+            kinds:
+              - Pod
+              - DaemonSet
+            namespaces:
+              - kube-system
+
+  customPolicies:
+    - apiVersion: kyverno.io/v1
+      kind: ClusterPolicy
+      metadata:
+        name: require-requests-limits
+        annotations:
+          policies.kyverno.io/title: Require Limits and Requests
+          policies.kyverno.io/category: Best Practices, EKS Best Practices
+          policies.kyverno.io/severity: medium
+          policies.kyverno.io/subject: Pod
+          policies.kyverno.io/minversion: "1.6.0"
+          policies.kyverno.io/description: >-
+            As application workloads share cluster resources, it is important to limit resources
+            requested and consumed by each Pod. It is recommended to require resource requests and
+            limits per Pod, especially for memory and CPU. If a Namespace level request or limit is specified,
+            defaults will automatically be applied to each Pod based on the LimitRange configuration.
+            This policy validates that all containers have something specified for memory and CPU
+            requests and memory limits.
+      spec:
+        background: true
+        rules:
+          - name: validate-resources
+            exclude:
+              any:
+                - resources:
+                    kinds:
+                      - Pod
+                      - DaemonSet
+                      - ReplicaSet
+                      - Deployment
+                      - StatefulSet
+                    namespaces:
+                      - monitoring
+                      - kube-system
+            match:
+              any:
+                - resources:
+                    kinds:
+                      - Pod
+            validate:
+              message: "CPU and memory resource requests and limits are required."
+              failureAction: Audit
+              pattern:
+                spec:
+                  containers:
+                    - resources:
+                        requests:
+                          memory: "?*"
+                          cpu: "?*"
+                        limits:
+                          memory: "?*"
+
+    - apiVersion: kyverno.io/v1
+      kind: ClusterPolicy
+      metadata:
+        name: prevent-bare-pods
+        annotations:
+          policies.kyverno.io/title: Prevent Bare Pods
+          pod-policies.kyverno.io/autogen-controllers: none
+          policies.kyverno.io/category: Other, EKS Best Practices
+          policies.kyverno.io/severity: medium
+          kyverno.io/kyverno-version: "1.7.0"
+          policies.kyverno.io/minversion: "1.6.0"
+          kyverno.io/kubernetes-version: "1.23"
+          policies.kyverno.io/subject: Pod
+          policies.kyverno.io/description: >-
+            Pods not created by workload controllers such as Deployments
+            have no self-healing or scaling abilities and are unsuitable for production.
+            This policy prevents such "bare" Pods from being created unless they originate
+            from a higher-level workload controller of some sort.
+      spec:
+        validationFailureAction: Audit
+        background: true
+        rules:
+          - name: bare-pods
+            match:
+              any:
+                - resources:
+                    kinds:
+                      - Pod
+            preconditions:
+              all:
+                - key: "{{`{{ request.operation || 'BACKGROUND' }}`}}"
+                  operator: NotEquals
+                  value: DELETE
+            validate:
+              message: "Bare Pods are not allowed. They must be created by Pod controllers."
+              deny:
+                conditions:
+                  any:
+                    - key: ownerReferences
+                      operator: AnyNotIn
+                      value: "{{`{{ request.object.metadata.keys(@) }}`}}"
+
+    - apiVersion: kyverno.io/v1
+      kind: ClusterPolicy
+      metadata:
+        name: restrict-nodeport-service
+        annotations:
+          policies.kyverno.io/title: Disallow NodePort
+          policies.kyverno.io/category: Best Practices
+          policies.kyverno.io/minversion: "1.6.0"
+          policies.kyverno.io/severity: medium
+          policies.kyverno.io/subject: Service
+          policies.kyverno.io/description: >-
+            A Kubernetes Service of type NodePort uses a host port to receive traffic from
+            any source. A NetworkPolicy cannot be used to control traffic to host ports.
+            Although NodePort Services can be useful, their use must be limited to Services
+            with additional upstream security checks. This policy validates that any new Services
+            do not use the NodePort type.
+      spec:
+        validationFailureAction: Audit
+        background: true
+        rules:
+          - name: validate-nodeport
+            match:
+              any:
+                - resources:
+                    kinds:
+                      - Service
+            validate:
+              message: "Services of type NodePort are not allowed."
+              pattern:
+                spec:
+                  =(type): "!NodePort"
+
+    - apiVersion: kyverno.io/v1
+      kind: ClusterPolicy
+      metadata:
+        name: restrict-loadbalancer-service
+        annotations:
+          policies.kyverno.io/title: Disallow Service Type LoadBalancer
+          policies.kyverno.io/category: Sample
+          policies.kyverno.io/severity: medium
+          policies.kyverno.io/subject: Service
+          policies.kyverno.io/minversion: "1.6.0"
+          policies.kyverno.io/description: >-
+            Especially in cloud provider environments, a Service having type LoadBalancer will cause the
+            provider to respond by creating a load balancer somewhere in the customer account. This adds
+            cost and complexity to a deployment. Without restricting this ability, users may easily
+            overrun established budgets and security practices set by the organization. This policy restricts
+            use of the Service type LoadBalancer. Namespaces traefik and monitoring are excluded.
+      spec:
+        validationFailureAction: Audit
+        background: true
+        rules:
+          - name: no-LoadBalancer
+            exclude:
+              any:
+                - resources:
+                    kinds:
+                      - Service
+                    namespaces:
+                      - traefik
+                      - monitoring
+            match:
+              any:
+                - resources:
+                    kinds:
+                      - Service
+            validate:
+              message: "Service of type LoadBalancer is not allowed."
+              pattern:
+                spec:
+                  type: "!LoadBalancer"
+
+    - apiVersion: kyverno.io/v1
+      kind: ClusterPolicy
+      metadata:
+        name: audit-ephemeral-containers
+        annotations:
+          policies.kyverno.io/title: Audit Ephemeral Containers
+          policies.kyverno.io/category: Security, Best Practices
+          policies.kyverno.io/severity: medium
+          policies.kyverno.io/subject: Pod
+          policies.kyverno.io/minversion: "1.6.0"
+          policies.kyverno.io/description: >-
+            Ephemeral containers (e.g. via kubectl debug) enable powerful debugging but also
+            introduce a security risk because they can run arbitrary images and bypass normal
+            admission controls. This policy audits every addition of ephemeral containers
+            cluster-wide so that all debugging activity is visible in the Kyverno policy-report
+            and the Kubernetes audit log.
+      spec:
+        validationFailureAction: Audit
+        background: false
+        rules:
+          - name: audit-ephemeral-containers
+            match:
+              any:
+                - resources:
+                    kinds:
+                      - Pod/ephemeralcontainers
+            validate:
+              message: >-
+                Ephemeral container '{{`{{ request.object.spec.ephemeralContainers[-1:][].name | @[0] }}`}}'
+                added to pod '{{`{{ request.object.metadata.name }}`}}'
+                in namespace '{{`{{ request.namespace }}`}}'
+                by '{{`{{ request.userInfo.username }}`}}'. Activity is being audited.
+              deny:
+                conditions:
+                  any:
+                    - key: "{{`{{ request.object.spec.ephemeralContainers | length(@) }}`}}"
+                      operator: GreaterThan
+                      value: "0"
+
+    - apiVersion: kyverno.io/v1
+      kind: ClusterPolicy
+      metadata:
+        name: disable-automountserviceaccounttoken
+        annotations:
+          policies.kyverno.io/title: Disable automountServiceAccountToken
+          policies.kyverno.io/category: Other, EKS Best Practices
+          policies.kyverno.io/severity: medium
+          policies.kyverno.io/subject: ServiceAccount
+          kyverno.io/kyverno-version: "1.6.0"
+          policies.kyverno.io/minversion: "1.6.0"
+          kyverno.io/kubernetes-version: "1.21"
+          policies.kyverno.io/description: >-
+            A new ServiceAccount called default is created whenever a new Namespace is created.
+            Pods spawned in that Namespace, unless otherwise set, will be assigned this ServiceAccount.
+            This policy mutates any new default ServiceAccounts to disable auto-mounting of the token
+            into Pods obviating the need to do so individually.
+      spec:
+        rules:
+          - name: disable-automountserviceaccounttoken
+            match:
+              any:
+                - resources:
+                    kinds:
+                      - ServiceAccount
+                    names:
+                      - default
+            mutate:
+              patchStrategicMerge:
+                automountServiceAccountToken: false
