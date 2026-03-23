@@ -1,0 +1,10 @@
+apiVersion: v2
+name: trust-manager-wrapper-chart
+dependencies:
+  - name: trust-manager
+    repository: https://charts.jetstack.io
+    version: v0.22.0
+description: "A wrapper chart for Trusmanager with pre populated CA Bundles"
+type: application
+version: 0.1.0
+appVersion: "0.22.0"

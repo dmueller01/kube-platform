@@ -1,0 +1,197 @@
+cert-manager:
+  # Gateway API support für TLS-Zertifikate an Gateway-Ressourcen
+  config:
+    enableGatewayAPI: true
+
+  # Field that can be used as a condition when cert-manager is a dependency.
+  # This definition is only here as a placeholder such that it is included in
+  # the json schema.
+  # See https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags
+  # for more info.
+  enabled: true
+  # When this flag is enabled, secrets will be automatically removed when the certificate resource is deleted.
+  enableCertificateOwnerRef: false
+
+  # Resources to provide to the cert-manager controller pod.
+  #
+  # For example:
+  #  requests:
+  #    cpu: 10m
+  #    memory: 32Mi
+  #
+  # For more information, see [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
+  resources: {}
+
+  # Optional additional labels to add to the controller Pods.
+  podLabels: {}
+
+  # Enables default network policies for cert-manager.
+  # This provides a way for you to restrict network traffic
+  # between cert-manager components and other pods.
+  # For more information, see [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+  # NOTE: an incorrect networkPolicy will cause traffic to be dropped
+  networkPolicy:
+    # Create network policies for cert-manager.
+    enabled: false
+
+    # Optional default issuer to use for ingress resources.
+    # +docs:property=ingressShim.defaultIssuerName
+    # defaultIssuerName: ""
+
+    # Optional default issuer kind to use for ingress resources.
+    # +docs:property=ingressShim.defaultIssuerKind
+    # defaultIssuerKind: ""
+
+    # Optional default issuer group to use for ingress resources.
+    # +docs:property=ingressShim.defaultIssuerGroup
+    # defaultIssuerGroup: ""
+
+  prometheus:
+    # Enable Prometheus monitoring for the cert-manager controller and webhook.
+    # If you use the Prometheus Operator, set prometheus.podmonitor.enabled or
+    # prometheus.servicemonitor.enabled, to create a PodMonitor or a
+    # ServiceMonitor resource.
+    # Otherwise, 'prometheus.io' annotations are added to the cert-manager and
+    # cert-manager-webhook Deployments.
+    # Note that you cannot enable both PodMonitor and ServiceMonitor as they are
+    # mutually exclusive. Enabling both will result in an error.
+    enabled: true
+
+    servicemonitor:
+      # Create a ServiceMonitor to add cert-manager to Prometheus.
+      enabled: false
+    # Note that you cannot enable both PodMonitor and ServiceMonitor as they are mutually exclusive. Enabling both will result in an error.
+    podmonitor:
+      # Create a PodMonitor to add cert-manager to Prometheus.
+      enabled: false
+  webhook:
+    # Number of replicas of the cert-manager webhook to run.
+    #
+    # The default is 1, but in production set this to 2 or 3 to provide high
+    # availability.
+    #
+    # If `replicas > 1`, consider setting `webhook.podDisruptionBudget.enabled=true`.
+    replicaCount: 1
+
+    podDisruptionBudget:
+      # Enable or disable the PodDisruptionBudget resource.
+      #
+      # This prevents downtime during voluntary disruptions such as during a Node upgrade.
+      # For example, the PodDisruptionBudget will block `kubectl drain`
+      # if it is used on the Node where the only remaining cert-manager
+      # Pod is currently running.
+      enabled: false
+      minAvailable: 1
+      maxUnavailable: 1
+
+    # Resources to provide to the cert-manager webhook pod.
+    #
+    # For example:
+    #  requests:
+    #    cpu: 10m
+    #    memory: 32Mi
+    #
+    # For more information, see [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
+    resources: {}
+
+    # Enables default network policies for webhooks.
+    # This provides a way for you to restrict network traffic
+    # between cert-manager components and other pods.
+    # For more information, see [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+    # NOTE: an incorrect networkPolicy will cause traffic to be dropped
+    networkPolicy:
+      # Create network policies for the webhooks.
+      enabled: false
+
+  cainjector:
+    # Create the CA Injector deployment
+    enabled: true
+
+    # The number of replicas of the cert-manager cainjector to run.
+    #
+    # The default is 1, but in production set this to 2 or 3 to provide high
+    # availability.
+    #
+    # If `replicas > 1`, consider setting `cainjector.podDisruptionBudget.enabled=true`.
+    #
+    # Note that cert-manager uses leader election to ensure that there can
+    # only be a single instance active at a time.
+    replicaCount: 1
+
+    # Enables default network policies for cainjector.
+    # This provides a way for you to restrict network traffic
+    # between cert-manager components and other pods.
+    # For more information, see [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+    # NOTE: an incorrect networkPolicy will cause traffic to be dropped
+    networkPolicy:
+      # Create network policies for the cainjector.
+      enabled: false
+
+    podDisruptionBudget:
+      # Enable or disable the PodDisruptionBudget resource.
+      #
+      # This prevents downtime during voluntary disruptions such as during a Node upgrade.
+      # For example, the PodDisruptionBudget will block `kubectl drain`
+      # if it is used on the Node where the only remaining cert-manager
+      # Pod is currently running.
+      enabled: false
+      minAvailable: 1
+      maxUnavailable: 1
+
+    # Resources to provide to the cert-manager cainjector pod.
+    #
+    # For example:
+    #  requests:
+    #    cpu: 10m
+    #    memory: 32Mi
+    #
+    # For more information, see [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
+    resources: {}
+
+
+  # +docs:section=Startup API Check
+  # This startupapicheck is a Helm post-install hook that waits for the webhook
+  # endpoints to become available.
+  # The check is implemented using a Kubernetes Job - if you are injecting mesh
+  # sidecar proxies into cert-manager pods, ensure that they
+  # are not injected into this Job's pod. Otherwise, the installation may time out
+  # owing to the Job never being completed because the sidecar proxy does not exit.
+  # For more information, see [this note](https://github.com/cert-manager/cert-manager/pull/4414).
+
+  startupapicheck:
+    # Enables the startup api check.
+    enabled: true
+
+    # Optional additional annotations to add to the startupapicheck Job.
+    # +docs:property
+    jobAnnotations:
+      helm.sh/hook: post-install
+      helm.sh/hook-weight: "1"
+      helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+
+    # Resources to provide to the cert-manager controller pod.
+    #
+    # For example:
+    #  requests:
+    #    cpu: 10m
+    #    memory: 32Mi
+    #
+    # For more information, see [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
+    resources: {}
+---
+trustManager:
+  replicaCount: 1
+
+  imagePullSecrets: []
+
+  app:
+    # -- Verbosity of trust logging; takes a value from 1-5, with higher being more verbose
+    logLevel: 1
+
+  resources:
+    limits:
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
