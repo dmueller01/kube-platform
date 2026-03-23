@@ -1,0 +1,99 @@
+image:
+  repository: registry.k8s.io/metrics-server/metrics-server
+  # Overrides the image tag whose default is v{{ .Chart.AppVersion }}
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+apiService:
+  # Specifies if the v1beta1.metrics.k8s.io API service should be created.
+  #
+  # You typically want this enabled! If you disable API service creation you have to
+  # manage it outside of this chart for e.g horizontal pod autoscaling to
+  # work with this release.
+  create: true
+  
+  # Specifies whether to skip TLS verification
+  insecureSkipTLSVerify: false
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop:
+      - ALL
+
+replicas: 1
+
+revisionHistoryLimit: 1
+
+podDisruptionBudget:
+  # https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+  enabled: false
+  minAvailable:
+  maxUnavailable:
+  unhealthyPodEvictionPolicy:
+
+metrics:
+  enabled: true
+
+serviceMonitor:
+  enabled: false
+  additionalLabels: {}
+  interval: 1m
+  scrapeTimeout: 10s
+  metricRelabelings: []
+  relabelings: []
+
+# See https://github.com/kubernetes-sigs/metrics-server#scaling
+resources:
+  requests:
+    cpu: 100m
+    memory: 200Mi
+    # limits:
+    #   cpu:
+    #   memory:
+
+tls:
+  # Set the TLS method to use. Supported values:
+  # - `metrics-server` : Metrics-server will generate a self-signed certificate
+  # - `helm`           : Helm will generate a self-signed certificate
+  # - `cert-manager`   : Use cert-manager.io to create and maintain the certificate
+  # - `existingSecret` : Reuse an existing secret. No new secret will be created
+  type: "cert-manager"
+  # Kubernetes cluster domain. Used to configure Subject Alt Names for the certificate
+  clusterDomain: cluster.local
+
+  certManager:
+    # Automatically add the cert-manager.io/inject-ca-from annotation to the APIService resource.
+    # See https://cert-manager.io/docs/concepts/ca-injector
+    # Muss true sein, damit der kube-apiserver die metrics-server TLS-Verbindung verifizieren kann.
+    # Ohne korrektes caBundle -> stale GroupVersion discovery -> Namespace hängt in Terminating.
+    addInjectorAnnotations: true
+    existingIssuer:
+      # Use an existing cert-manager issuer
+      enabled: true
+      # Kind of the existing cert-manager issuer
+      kind: "ClusterIssuer"
+      # Name of the existing cert-manager issuer
+      name: "ca-cluster-issuer"
+
+defaultArgs:
+  - --cert-dir=/tmp
+  - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+  - --kubelet-use-node-status-port
+  - --metric-resolution=15s
+  - --kubelet-insecure-tls
