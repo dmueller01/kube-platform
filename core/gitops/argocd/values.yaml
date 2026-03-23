@@ -1,0 +1,534 @@
+## Argo CD configuration
+## Ref: https://github.com/argoproj/argo-cd
+##
+# -- Create aggregated roles that extend existing cluster roles to interact with argo-cd resources
+## Ref: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles
+createAggregateRoles: true
+# -- Create cluster roles for cluster-wide installation.
+## Used when you manage applications in the same cluster where Argo CD runs
+createClusterRoles: true
+
+## Custom resource configuration
+crds:
+  # -- Install and upgrade CRDs
+  install: true
+  # -- Keep CRDs on chart uninstall
+  keep: true
+
+## Globally shared configuration
+global:
+  # -- Default domain used by all components
+  ## Used for ingresses, certificates, SSO, notifications, etc.
+  domain: argocd.kind-cluster.local
+
+  # -- Number of old deployment ReplicaSets to retain. The rest will be garbage collected.
+  revisionHistoryLimit: 1
+
+  # Default image used by all components
+  image:
+    # -- If defined, a repository applied to all Argo CD deployments
+    repository: quay.io/argoproj/argocd
+    # -- Overrides the global Argo CD image tag whose default is the chart appVersion
+    tag: ""
+    # -- If defined, a imagePullPolicy applied to all Argo CD deployments
+    imagePullPolicy: IfNotPresent
+
+  # -- Secrets with credentials to pull images from a private registry
+  imagePullSecrets: []
+
+  # Default logging options used by all components
+  logging:
+    # -- Set the global logging format. Either: `text` or `json`
+    format: json
+    # -- Set the global logging level. One of: `debug`, `info`, `warn` or `error`
+    level: info
+
+  # -- Toggle and define pod-level security context.
+  # @default -- `{}` (See [values.yaml])
+  securityContext: {}
+  #  runAsUser: 999
+  #  runAsGroup: 999
+  #  fsGroup: 999
+
+  # Default network policy rules used by all components
+  networkPolicy:
+    # -- Create NetworkPolicy objects for all components
+    create: true
+    # -- Default deny all ingress traffic
+    defaultDenyIngress: true
+  
+  extraVolumes:
+    - name: root-ca
+      configMap:
+        name: global-ca-bundle
+        items:
+          - key: ca-bundle.crt
+            path: ca-certificates.crt
+
+
+  # -- Extra volume mounts to add to all deployed Deployments and StatefulSets
+  extraVolumeMounts:
+    - name: root-ca
+      mountPath: /etc/ssl/certs
+
+  # Argo CD RBAC policy configuration
+  ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md
+  rbac:
+    # -- Create the argocd-rbac-cm configmap with ([Argo CD RBAC policy]) definitions.
+    # If false, it is expected the configmap will be created by something else.
+    # Argo CD will not work if there is no configmap created with the name above.
+    create: true
+
+    # -- File containing user-defined policies and role definitions.
+    policy.csv: ''
+    # Policy rules are in the form:
+    #  p, subject, resource, action, object, effect
+    # Role definitions and bindings are in the form:
+    #  g, subject, inherited-subject
+    # policy.csv: |
+    #   p, role:org-admin, applications, *, */*, allow
+    #   p, role:org-admin, clusters, get, *, allow
+    #   p, role:org-admin, repositories, *, *, allow
+    #   p, role:org-admin, logs, get, *, allow
+    #   p, role:org-admin, exec, create, */*, allow
+    #   g, your-github-org:your-team, role:org-admin
+
+    # -- OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
+    # The scope value can be a string, or a list of strings.
+    scopes: "[groups]"
+
+    # -- Matcher function for Casbin, `glob` for glob matcher and `regex` for regex matcher.
+    policy.matchMode: "glob"
+  
+  # Argo CD sensitive data
+  # Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets
+  secret:
+    # -- Create the argocd-secret
+    createSecret: false
+
+configs:
+  params:
+    server.insecure: "true"
+
+## Application controller
+controller:
+  # -- Application controller name string
+  name: application-controller
+
+  # -- Resource limits and requests for the application controller pods
+  resources:
+   limits:
+     memory: 512Mi
+   requests:
+     cpu: 250m
+     memory: 256Mi
+
+  serviceAccount:
+    # -- Create a service account for the application controller
+    create: true
+    # -- Service account name
+    name: argocd-application-controller
+
+
+  ## Application controller metrics configuration
+  metrics:
+    # -- Deploy metrics service
+    enabled: false
+    # -- Prometheus ServiceMonitor scrapeTimeout. If empty, Prometheus uses the global scrape timeout unless it is less than the target's scrape interval value in which the latter is used.
+    scrapeTimeout: ""
+
+    service:
+      # -- Metrics service type
+      type: ClusterIP
+      # -- Metrics service clusterIP. `None` makes a "headless service" (no virtual IP)
+      clusterIP: ""
+    serviceMonitor:
+      # -- Enable a prometheus ServiceMonitor
+      enabled: false
+
+      # -- Prometheus ServiceMonitor scheme
+      scheme: ""
+      # -- Prometheus ServiceMonitor tlsConfig
+      tlsConfig: {}
+      # -- Prometheus ServiceMonitor namespace
+      namespace: "" # "monitoring"
+    rules:
+      # -- Deploy a PrometheusRule for the application controller
+      enabled: false
+      # -- PrometheusRule namespace
+      namespace: "" # "monitoring"
+      # -- PrometheusRule selector
+      selector: {}
+        # prometheus: kube-prometheus
+
+      # -- PrometheusRule.Spec for the application controller
+      spec: []
+
+## Redis
+redis:
+  # -- Enable redis
+  enabled: true
+  # -- Redis name
+  name: redis
+  ## Prometheus redis-exporter sidecar
+  exporter:
+    # -- Enable Prometheus redis-exporter sidecar
+    enabled: false
+
+    # -- Resource limits and requests for redis-exporter sidecar
+    resources:
+      limits:
+        memory: 64Mi
+      requests:
+        cpu: 10m
+        memory: 32Mi
+
+  # -- Secrets with credentials to pull images from a private registry
+  # @default -- `[]` (defaults to global.imagePullSecrets)
+  imagePullSecrets: []
+
+  # -- Resource limits and requests for redis
+  resources:
+   limits:
+     memory: 128Mi
+   requests:
+     cpu: 100m
+     memory: 64Mi
+
+  # Redis container ports
+  containerPorts:
+    # -- Redis container port
+    redis: 6379
+    # -- Metrics container port
+    metrics: 9121
+
+  serviceAccount:
+    # -- Create a service account for the redis pod
+    create: false
+    # -- Service account name for redis pod
+    name: "redis"
+
+  metrics:
+    # -- Deploy metrics service
+    enabled: false
+
+    # Redis metrics service configuration
+    service:
+      # -- Metrics service type
+      type: ClusterIP
+      # -- Metrics service clusterIP. `None` makes a "headless service" (no virtual IP)
+      clusterIP: None
+      # -- Metrics service annotations
+      annotations: {}
+      # -- Metrics service labels
+      labels: {}
+      # -- Metrics service port
+      servicePort: 9121
+      # -- Metrics service port name
+      portName: http-metrics
+
+    serviceMonitor:
+      # -- Enable a prometheus ServiceMonitor
+      enabled: false
+      # -- Interval at which metrics should be scraped
+      interval: 30s
+      # -- When true, honorLabels preserves the metric’s labels when they collide with the target’s labels.
+      honorLabels: false
+      # -- Prometheus [RelabelConfigs] to apply to samples before scraping
+      relabelings: []
+      # -- Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
+      metricRelabelings: []
+      # -- Prometheus ServiceMonitor selector
+      selector: {}
+        # prometheus: kube-prometheus
+
+      # -- Prometheus ServiceMonitor scheme
+      scheme: ""
+      # -- Prometheus ServiceMonitor tlsConfig
+      tlsConfig: {}
+      # -- Prometheus ServiceMonitor namespace
+      namespace: "" # "monitoring"
+      # -- Prometheus ServiceMonitor labels
+      additionalLabels: {}
+      # -- Prometheus ServiceMonitor annotations
+      annotations: {}
+
+redisSecretInit:
+  # -- Enable Redis secret initialization. If disabled, secret must be provisioned by alternative methods
+  enabled: true
+  # -- Redis secret-init name
+  name: redis-secret-init
+
+  # -- Resource limits and requests for Redis secret-init Job
+  resources:
+   limits:
+     memory: 128Mi
+   requests:
+     cpu: 100m
+     memory: 64Mi
+
+  serviceAccount:
+    # -- Create a service account for the redis pod
+    create: false
+    # -- Service account name for redis pod
+    name: ""
+
+## Server
+server:
+  # -- Argo CD server name
+  name: server
+  # -- Resource limits and requests for the Argo CD server
+  resources:
+   limits:
+     memory: 128Mi
+   requests:
+     cpu: 50m
+     memory: 64Mi
+
+  # TLS certificate configuration via cert-manager
+  ## Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/tls/#tls-certificates-used-by-argocd-server
+  certificate:
+    # -- Deploy a Certificate resource (requires cert-manager)
+    enabled: false
+    # Certificate issuer
+    ## Ref: https://cert-manager.io/docs/concepts/issuer
+    issuer:
+      # -- Certificate issuer group. Set if using an external issuer. Eg. `cert-manager.io`
+      group: "cert-manager.io"
+      # -- Certificate issuer kind. Either `Issuer` or `ClusterIssuer`
+      kind: "ClusterIssuer"
+      # -- Certificate issuer name. Eg. `letsencrypt`
+      name: "ca-cluster-issuer"
+
+  ## Server metrics service configuration
+  metrics:
+    # -- Deploy metrics service
+    enabled: false
+    service:
+      # -- Metrics service type
+      type: ClusterIP
+      # -- Metrics service clusterIP. `None` makes a "headless service" (no virtual IP)
+      clusterIP: ""
+      # -- Metrics service annotations
+      annotations: {}
+      # -- Metrics service labels
+      labels: {}
+      # -- Metrics service port
+      servicePort: 8083
+      # -- Metrics service port name
+      portName: http-metrics
+    serviceMonitor:
+      # -- Enable a prometheus ServiceMonitor
+      enabled: false
+      # -- Prometheus ServiceMonitor interval
+      interval: 30s
+      # -- Prometheus ServiceMonitor scrapeTimeout. If empty, Prometheus uses the global scrape timeout unless it is less than the target's scrape interval value in which the latter is used.
+      scrapeTimeout: ""
+      # -- When true, honorLabels preserves the metric’s labels when they collide with the target’s labels.
+      honorLabels: false
+      # -- Prometheus [RelabelConfigs] to apply to samples before scraping
+      relabelings: []
+      # -- Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
+      metricRelabelings: []
+      # -- Prometheus ServiceMonitor selector
+      selector: {}
+        # prometheus: kube-prometheus
+
+      # -- Prometheus ServiceMonitor scheme
+      scheme: ""
+      # -- Prometheus ServiceMonitor tlsConfig
+      tlsConfig: {}
+      # -- Prometheus ServiceMonitor namespace
+      namespace: ""  # monitoring
+      # -- Prometheus ServiceMonitor labels
+      additionalLabels: {}
+      # -- Prometheus ServiceMonitor annotations
+      annotations: {}
+
+  serviceAccount:
+    # -- Create server service account
+    create: true
+    # -- Server service account name
+    name: argocd-server
+    # -- Annotations applied to created service account
+
+
+  # Gateway API HTTPRoute configuration
+  # NOTE: Gateway API support is in EXPERIMENTAL status
+  # Support depends on your Gateway controller implementation
+  # Some controllers may require additional configuration (e.g., BackendTLSPolicy for HTTPS backends)
+  # Refer to https://gateway-api.sigs.k8s.io/implementations/ for controller-specific details
+  httproute:
+    # -- Enable HTTPRoute resource for Argo CD server (Gateway API)
+    enabled: true
+
+    parentRefs:
+      - name: ingress
+        namespace: kgateway-system
+        sectionName: https
+
+    hostnames:
+      - argocd.kind-cluster.local
+
+    # -- HTTPRoute rules configuration
+    # @default -- `[]` (See [values.yaml])
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+  
+  backendTLSPolicy:
+    # -- Enable BackendTLSPolicy resource for Argo CD server (Gateway API)
+    # Erforderlich bei HTTPS-Backend (server.insecure: false) mit kgateway
+    enabled: false
+    targetRefs:
+      - group: ""
+        kind: Service
+        name: argocd-server
+        sectionName: https
+    validation:
+      hostname: argocd-server.argocd.svc.cluster.local
+      caCertificateRefs:
+        - name: argocd-server-ca
+          group: ""
+          kind: ConfigMap
+
+## Repo Server
+repoServer:
+  # -- Repo server name
+  name: repo-server
+
+  # -- Resource limits and requests for the repo server pods
+  resources:
+   limits:
+     memory: 128Mi
+   requests:
+     cpu: 10m
+     memory: 64Mi
+
+  ## Repo server metrics service configuration
+  metrics:
+    # -- Deploy metrics service
+    enabled: false
+    service:
+      # -- Metrics service type
+      type: ClusterIP
+      # -- Metrics service clusterIP. `None` makes a "headless service" (no virtual IP)
+      clusterIP: ""
+      # -- Metrics service annotations
+      annotations: {}
+      # -- Metrics service labels
+      labels: {}
+      # -- Metrics service port
+      servicePort: 8084
+      # -- Metrics service port name
+      portName: http-metrics
+    serviceMonitor:
+      # -- Enable a prometheus ServiceMonitor
+      enabled: false
+      # -- Prometheus ServiceMonitor interval
+      interval: 30s
+      # -- Prometheus ServiceMonitor scrapeTimeout. If empty, Prometheus uses the global scrape timeout unless it is less than the target's scrape interval value in which the latter is used.
+      scrapeTimeout: ""
+      # -- When true, honorLabels preserves the metric’s labels when they collide with the target’s labels.
+      honorLabels: false
+      # -- Prometheus [RelabelConfigs] to apply to samples before scraping
+      relabelings: []
+      # -- Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
+      metricRelabelings: []
+      # -- Prometheus ServiceMonitor selector
+      selector: {}
+        # prometheus: kube-prometheus
+
+      # -- Prometheus ServiceMonitor scheme
+      scheme: ""
+      # -- Prometheus ServiceMonitor tlsConfig
+      tlsConfig: {}
+      # -- Prometheus ServiceMonitor namespace
+      namespace: "" # "monitoring"
+      # -- Prometheus ServiceMonitor labels
+      additionalLabels: {}
+      # -- Prometheus ServiceMonitor annotations
+      annotations: {}
+
+## ApplicationSet controller
+applicationSet:
+  # -- ApplicationSet controller name string
+  name: applicationset-controller
+
+  ## Metrics service configuration
+  metrics:
+    # -- Deploy metrics service
+    enabled: false
+    service:
+      # -- Metrics service type
+      type: ClusterIP
+      # -- Metrics service clusterIP. `None` makes a "headless service" (no virtual IP)
+      clusterIP: ""
+      # -- Metrics service annotations
+      annotations: {}
+      # -- Metrics service labels
+      labels: {}
+      # -- Metrics service port
+      servicePort: 8080
+      # -- Metrics service port name
+      portName: http-metrics
+    serviceMonitor:
+      # -- Enable a prometheus ServiceMonitor
+      enabled: false
+      # -- Prometheus ServiceMonitor interval
+      interval: 30s
+      # -- Prometheus ServiceMonitor scrapeTimeout. If empty, Prometheus uses the global scrape timeout unless it is less than the target's scrape interval value in which the latter is used.
+      scrapeTimeout: ""
+      # -- When true, honorLabels preserves the metric’s labels when they collide with the target’s labels.
+      honorLabels: false
+      # -- Prometheus [RelabelConfigs] to apply to samples before scraping
+      relabelings: []
+      # -- Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
+      metricRelabelings: []
+      # -- Prometheus ServiceMonitor selector
+      selector: {}
+        # prometheus: kube-prometheus
+
+      # -- Prometheus ServiceMonitor scheme
+      scheme: ""
+      # -- Prometheus ServiceMonitor tlsConfig
+      tlsConfig: {}
+      # -- Prometheus ServiceMonitor namespace
+      namespace: ""  # monitoring
+      # -- Prometheus ServiceMonitor labels
+      additionalLabels: {}
+      # -- Prometheus ServiceMonitor annotations
+      annotations: {}
+
+  serviceAccount:
+    # -- Create ApplicationSet controller service account
+    create: true
+    # -- ApplicationSet controller service account name
+    name: argocd-applicationset-controller
+
+  # -- Resource limits and requests for the ApplicationSet controller pods.
+  resources:
+    limits:
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # TLS certificate configuration via cert-manager
+  ## Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/tls/#tls-configuration
+  certificate:
+    # -- Deploy a Certificate resource (requires cert-manager)
+    enabled: true
+
+    issuer:
+      # -- Certificate issuer group. Set if using an external issuer. Eg. `cert-manager.io`
+      group: "cert-manager.io"
+      # -- Certificate issuer kind. Either `Issuer` or `ClusterIssuer`
+      kind: "ClusterIssuer"
+      # -- Certificate issuer name. Eg. `letsencrypt`
+      name: "ca-cluster-issuer"
+
+  # -- Enable ApplicationSet in any namespace feature
+  allowAnyNamespace: false
