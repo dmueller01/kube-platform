@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: linkerd-sp-validator
+  namespace: linkerd
+spec:
+  secretName: linkerd-sp-validator-k8s-tls
+  duration: 8760h # 1 Jahr
+  renewBefore: 360h # 15 Tage
+  issuerRef:
+    name: ca-cluster-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+  commonName: linkerd-sp-validator.linkerd.svc
+  dnsNames:
+    - linkerd-sp-validator.linkerd.svc
+    - linkerd-sp-validator.linkerd.svc.cluster.local
+  privateKey:
+    algorithm: RSA
+  usages:
+    - "digital signature"
+    - "key encipherment"
+    - "client auth"
+    - "server auth"

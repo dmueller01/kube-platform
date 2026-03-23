@@ -1,0 +1,185 @@
+# -- Optionale Linkerd-Komponenten. Wenn aktiviert, werden die zugehörigen
+# Subcharts als Dependencies installiert (condition-basiert).
+# Bei features.cni.enabled: true zusätzlich linkerd-control-plane.cniEnabled: true setzen.
+features:
+  viz:
+    enabled: false  # linkerd-viz (Dashboard, Metriken)
+  cni:
+    enabled: false  # linkerd2-cni (CNI-Plugin; muss vor Control Plane installiert werden)
+
+linkerd-control-plane:
+  revisionHistoryLimit: 1
+  controllerLogLevel: info
+  controllerLogFormat: json
+  linkerdVersion: edge-25.10.7 # Linkerd 2.19 (see also https://linkerd.io/releases/)
+  # -- enabling this omits the NET_ADMIN capability in the PSP
+  # and the proxy-init container when injecting the proxy;
+  # requires the linkerd-cni plugin to already be installed (set features.cni.enabled: true)
+  cniEnabled: false
+  # -- Trust domain used for identity
+  # @default -- clusterDomain
+  # -- Additional annotations to add to all pods
+  podAnnotations: {}
+  # -- Additional labels to add to all pods
+  podLabels: {}
+  # -- Labels to apply to all resources
+  commonLabels: {}
+  # -- Kubernetes priorityClassName for the Linkerd Pods
+  # policy controller configuration
+  policyController:
+    # `image` has been removed.
+
+    # -- Log level for the policy controller
+    logLevel: info
+
+    # -- The networks from which probes are performed.
+    #
+    # By default, all networks are allowed so that all probes are authorized.
+    probeNetworks:
+      - 0.0.0.0/0
+      - "::/0"
+
+    # -- policy controller resource requests & limits
+    resources:
+      cpu:
+        # -- Maximum amount of CPU units that the policy controller can use
+        limit: ""
+        # -- Amount of CPU units that the policy controller requests
+        request: ""
+      memory:
+        # -- Maximum amount of memory that the policy controller can use
+        limit: ""
+        # -- Maximum amount of memory that the policy controller requests
+        request: ""
+      ephemeral-storage:
+        # -- Maximum amount of ephemeral storage that the policy controller can use
+        limit: ""
+        # -- Amount of ephemeral storage that the policy controller requests
+        request: ""
+
+  # proxy configuration
+  proxy:
+    # -- Log level for the proxy
+    logLevel: warn,linkerd=info,hickory=error
+    # -- Log format (`plain` or `json`) for the proxy
+    logFormat: json
+    # -- (`off` or `insecure`) If set to `off`, will prevent the proxy from
+    # logging HTTP headers. If set to `insecure`, HTTP headers may be logged
+    # verbatim. Note that setting this to `insecure` is not alone sufficient to
+    # log HTTP headers; the proxy logLevel must also be set to debug.
+    logHTTPHeaders: "off"
+
+    resources:
+      # -- CPU configuration, when specified globally in Helm values, should be
+      # kept in sync with the above runtime.workers.minimum configuration. The
+      # minimum should reflect _at least_ the CPU request. When a limit is set,
+      # the minimum should match the limit (and the maximumCPURatio should be
+      # unset).
+      cpu:
+        # -- Maximum amount of CPU units that the proxy can use
+        limit: ""
+        # -- Amount of CPU units that the proxy requests
+        request: ""
+
+      memory:
+        # -- Maximum amount of memory that the proxy can use
+        limit: ""
+        # -- Maximum amount of memory that the proxy requests
+        request: ""
+
+      ephemeral-storage:
+        # -- Maximum amount of ephemeral storage that the proxy can use
+        limit: ""
+        # -- Amount of ephemeral storage that the proxy requests
+        request: ""
+
+    # -- User id under which the proxy runs
+    uid: 2102
+    # -- (int) Optional customisation of the group id under which the proxy runs (the group ID will be omitted if lower than 0)
+    gid: -1
+    # -- Optional custom security context for the proxy container.
+    securityContext: {}
+
+    # -- Default set of opaque ports
+    # - SMTP (25,587) server-first
+    # - MYSQL (3306) server-first
+    # - Galera (4444) server-first
+    # - PostgreSQL (5432) server-first
+    # - Redis (6379) server-first
+    # - ElasticSearch (9300) server-first
+    # - Memcached (11211) clients do not issue any preamble, which breaks detection
+    opaquePorts: "25,587,3306,4444,5432,6379,9300,11211"
+
+  identity:
+    # -- If the linkerd-identity-trust-roots ConfigMap has already been created
+    externalCA: true
+
+    issuer:
+      scheme: 'kubernetes.io/tls'
+  proxyInjector:
+    externalSecret: true
+
+    # -- Inject the CA bundle from a cert-manager Certificate.
+    # See the cert-manager [CA Injector Docs](https://cert-manager.io/docs/concepts/ca-injector/#injecting-ca-data-from-a-certificate-resource)
+    # for more information.
+    injectCaFrom: "linkerd/linkerd-proxy-injector"
+  profileValidator:
+    # -- Do not create a secret resource for the profileValidator webhook.
+    # If this is set to `true`, the value `proxyInjector.caBundle` must be set
+    # or the ca bundle must injected with cert-manager ca injector using
+    # `proxyInjector.injectCaFrom` or `proxyInjector.injectCaFromSecret` (see below).
+    externalSecret: true
+
+    # -- Inject the CA bundle from a cert-manager Certificate.
+    # See the cert-manager [CA Injector Docs](https://cert-manager.io/docs/concepts/ca-injector/#injecting-ca-data-from-a-certificate-resource)
+    # for more information.
+    injectCaFrom: "linkerd/linkerd-sp-validator"
+
+  # policy validator configuration
+  policyValidator:
+    # -- Do not create a secret resource for the policyValidator webhook.
+    # If this is set to `true`, the value `policyValidator.caBundle` must be set
+    # or the ca bundle must injected with cert-manager ca injector using
+    # `policyValidator.injectCaFrom` or `policyValidator.injectCaFromSecret` (see below).
+    externalSecret: true
+
+    # -- Inject the CA bundle from a cert-manager Certificate.
+    # See the cert-manager [CA Injector Docs](https://cert-manager.io/docs/concepts/ca-injector/#injecting-ca-data-from-a-certificate-resource)
+    # for more information.
+    injectCaFrom: "linkerd/linkerd-policy-validator"
+
+    # -- Inject the CA bundle from a Secret.
+    # If set, the `cert-manager.io/inject-ca-from-secret` annotation will be added to the webhook.
+    # The Secret must have the CA Bundle stored in the `ca.crt` key and have
+    # the `cert-manager.io/allow-direct-injection` annotation set to `true`.
+    # See the cert-manager [CA Injector Docs](https://cert-manager.io/docs/concepts/ca-injector/#injecting-ca-data-from-a-secret-resource)
+    # for more information.
+    injectCaFromSecret: ""
+  # Prometheus Operator PodMonitor configuration
+  podMonitor:
+    # -- Enables the creation of Prometheus Operator [PodMonitor](https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor)
+    enabled: false
+    # -- Interval at which metrics should be scraped
+    scrapeInterval: 10s
+    # -- Iimeout after which the scrape is ended
+    scrapeTimeout: 10s
+    # -- Labels to apply to all pod Monitors
+    labels: {}
+    controller:
+      # -- Enables the creation of PodMonitor for the control-plane
+      enabled: true
+      # -- Selector to select which namespaces the Endpoints objects are discovered from
+    serviceMirror:
+      # -- Enables the creation of PodMonitor for the Service Mirror component
+      enabled: true
+    proxy:
+      # -- Enables the creation of PodMonitor for the data-plane
+      enabled: true
+
+# -- linkerd-viz (nur wirksam wenn features.viz.enabled: true)
+# Dashboard, Metriken, Grafana. Siehe https://artifacthub.io/packages/helm/linkerd2-edge/linkerd-viz
+linkerd-viz: {}
+
+# -- linkerd2-cni (nur wirksam wenn features.cni.enabled: true)
+# CNI-Plugin für Pod-Netzwerk. Siehe https://artifacthub.io/packages/helm/linkerd2-edge/linkerd2-cni
+linkerd2-cni: {}

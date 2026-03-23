@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: linkerd-proxy-injector
+  namespace: linkerd
+spec:
+  secretName: linkerd-proxy-injector-k8s-tls
+  duration: 8760h # 1 Jahr
+  renewBefore: 360h # 15 Tage
+  issuerRef:
+    name: ca-cluster-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+  commonName: linkerd-proxy-injector.linkerd.svc
+  dnsNames:
+    - linkerd-proxy-injector.linkerd.svc
+    - linkerd-proxy-injector.linkerd.svc.cluster.local
+  privateKey:
+    algorithm: RSA
+  usages:
+    - "digital signature"
+    - "key encipherment"
+    - "client auth"
+    - "server auth"

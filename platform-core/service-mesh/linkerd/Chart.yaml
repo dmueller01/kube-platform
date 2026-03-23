@@ -1,0 +1,19 @@
+apiVersion: v2
+name: linkerd-wrapper-chart
+dependencies:
+  # CNI muss vor dem Control Plane installiert werden, wenn aktiviert
+  - name: linkerd2-cni
+    repository: 'https://helm.linkerd.io/edge'
+    version: '2025.10.7'
+    condition: features.cni.enabled
+  - name: linkerd-control-plane
+    repository: 'https://helm.linkerd.io/edge'
+    version: '2025.10.7'
+  - name: linkerd-viz
+    repository: 'https://helm.linkerd.io/edge'
+    version: '2025.10.7'
+    condition: features.viz.enabled
+description: A wrapper chart for linkerd featuring cert-manager
+type: application
+version: 0.1.0
+appVersion: "linkerd-2.19"
