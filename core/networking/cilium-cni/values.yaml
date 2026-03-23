@@ -1,0 +1,222 @@
+# Default Cilium values for BYOCNI
+# This configuration is for Bring Your Own CNI mode (network_plugin = none)
+# The pod CIDR is configured at cluster level and will be used by Cilium
+# Reference: https://github.com/cilium/cilium/blob/v1.18.4/install/kubernetes/cilium/values.yaml
+
+# Node initialization for BYOCNI on AKS
+# Required for proper node setup when using BYOCNI
+nodeinit:
+  enabled: true
+
+# AKS BYOCNI specific configuration
+aksbyocni:
+  enabled: true
+
+# CNI Configuration for BYOCNI
+# When using BYOCNI, Cilium runs in full CNI mode (not chained)
+cni:
+  chainingMode: "none"
+
+# IPAM Configuration
+# Use cluster-pool mode for BYOCNI (better than kubernetes mode for AKS)
+# The pod CIDR is set at AKS cluster level (via pod_cidr in network_profile)
+ipam:
+  mode: cluster-pool
+
+# BPF Configuration
+# Use BPF masquerading instead of iptables for better performance
+bpf:
+  masquerade: true
+  hostRouting: true
+
+# Policy Enforcement Mode
+# default: policies are enforced in addition to always-allowed traffic
+policyEnforcementMode: "default"
+
+# Enable Hubble for network observability
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+    ingress:
+      enabled: false  # Can be enabled per environment if needed
+  # TLS Configuration for Hubble
+  tls:
+    enabled: true
+    auto:
+      enabled: true
+      method: cronJob
+      certValidityDuration: 14  # days
+      schedule: "30 3 * * 6"  # At 03:30 on Saturdays
+  # Data redaction for privacy/security
+  redact:
+    enabled: true
+    http:
+      urlQuery: true
+      userInfo: true
+      headers:
+        deny:
+          - Authorization
+          - Proxy-Authorization
+    kafka:
+      apiKey: true
+  # Hubble Metrics Configuration
+  metrics:
+    enabled:
+      - dns:query;ignoreAAAA
+      - drop:sourceContext=identity;destinationContext=identity
+      - tcp
+      - flow
+      - port-distribution
+      - icmp
+      # Enable additional labels for L7 flows
+      - 'httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction;sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity'
+      # Enterprise only, refer to Event Export Monitoring docs
+      #- flow_export
+    serviceMonitor:
+      enabled: false  # CRDs would need to be there before
+    enableOpenMetrics: true
+  # Static file export for Fluent Bit to tail on each node
+  export:
+    static:
+      enabled: true
+      filePath: /var/run/cilium/hubble/events.log
+      fileMaxSizeMb: 10
+      fileMaxBackups: 5
+      # The chart template renders allowList via: {{ .allowList | join " " | quote }}
+      # An empty list [] produces hubble-export-allowlist: "" which is not valid
+      # JSON and causes the Cilium agent to silently skip starting the file exporter.
+      # Providing an empty FlowFilter object {} matches ALL flows (no restrictions).
+      allowList:
+        - "{}"
+      denyList: []
+
+# Prometheus Integration
+# Note: This does NOT install Prometheus, it only exposes metrics endpoints
+# Your existing Prometheus can scrape these metrics. Set serviceMonitor.enabled=true
+# if you want Cilium to create ServiceMonitor CRDs (requires prometheus-operator CRDs)
+prometheus:
+  enabled: true  # Exposes metrics on port 9962, does NOT install Prometheus
+  serviceMonitor:
+    enabled: false  # Set to true if you want Cilium to create ServiceMonitor CRDs for your existing Prometheus
+
+# Operator Configuration
+operator:
+  metrics:
+    enabled: true
+
+# Ingress Controller Configuration
+ingressController:
+  # enabled: true  # Can be enabled if needed
+  default: false
+  loadbalancerMode: shared
+  enforceHttps: true
+
+# Gateway API Support
+gatewayAPI:
+  # Enable support for Gateway API in cilium
+  # This will automatically set enable-envoy-config as well.
+  enabled: false
+
+# Encryption Configuration
+# WireGuard needs UDP port 51871 on each node
+# Ensure firewall/NSG rules allow this port
+encryption:
+  enabled: true
+  type: wireguard
+  # Enable encryption for pure node to node traffic
+  nodeEncryption: false
+
+# Kube Proxy Replacement
+# Replace kube-proxy with Cilium's eBPF implementation for better performance
+kubeProxyReplacement: true
+kubeProxyReplacementHealthzBindAddr: ""
+
+# Layer 7 Proxy
+l7Proxy: true
+
+# Load Balancer Configuration
+loadBalancer:
+  # L7 backend for load balancer
+  l7:
+    backend: enabled
+  # XDP acceleration (commented out, can be enabled for Azure if needed)
+  # acceleration: native  # activates XDP acceleration https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#nodeport-xdp-on-azure
+  # mode: hybrid
+
+# Envoy Configuration
+# Flag whether envoy daemonset should be deployed
+# false means that envoy will be another process in cilium agent
+# docs: https://docs.cilium.io/en/stable/security/network/proxy/envoy/#enable-and-configure-envoy-daemonset
+envoy:
+  enabled: false
+
+# Mutual TLS Authentication (mTLS)
+# Still beta, didn't work in tests because PVC was not available early enough
+# Keep disabled until considered GA
+# See limitations: https://docs.cilium.io/en/stable/network/servicemesh/mutual-authentication/mutual-authentication/#limitations
+authentication:
+  mutual:
+    spire:
+      enabled: false
+      install:
+        enabled: false
+
+# Note: enableCiliumEndpointSlice was removed in Cilium 1.18
+# CiliumEndpointSlice is now always enabled in 1.18+
+
+# Security Context
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+# Resource limits
+resources:
+  cilium:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 2000m
+      memory: 512Mi
+  operator:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 1000m
+      memory: 256Mi
+
+# Node selector and tolerations (if needed)
+nodeSelector: {}
+# Critical tolerations for BYOCNI mode
+# Cilium MUST tolerate not-ready nodes to provide CNI that makes them ready
+tolerations:
+  - operator: Exists
+    effect: NoSchedule
+  - operator: Exists
+    effect: NoExecute
+  - key: node.kubernetes.io/not-ready
+    operator: Exists
+  - key: node.kubernetes.io/unreachable
+    operator: Exists
+  - key: node.cloudprovider.kubernetes.io/uninitialized
+    operator: Exists
+    effect: NoSchedule
+  - key: node.cloudprovider.kubernetes.io/shutdown
+    operator: Exists
+  - key: node.kubernetes.io/out-of-service
+    operator: Exists
