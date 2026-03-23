@@ -1,0 +1,20 @@
+---
+type: gitPath
+project: platform-features
+
+source:
+  repoURL: https://github.com/kubernetes-sigs/gateway-api
+  targetRevision: v1.2.0
+  path: config/crd/standard
+
+# Destination namespace for the Argo CD application.
+destinationNamespace: argocd
+
+argocd:
+  applicationAnnotations:
+    argocd.argoproj.io/sync-wave: "-20"
+  automated:
+    prune: false
+    selfHeal: true
+  syncOptions:
+    - ServerSideApply=true

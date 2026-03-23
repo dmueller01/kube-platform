@@ -1,0 +1,40 @@
+# Einzige Quelle der Wahrheit für GatewayParameters-Name und -Namespace.
+# Wird verwendet in: GatewayParameters-Manifest, Gateway parametersRef, gatewayClassParametersRefs
+gatewayParameters: &gatewayParametersRef
+  name: ingress
+  namespace: kgateway-system
+
+# kgateway subchart values
+# Ref: https://kgateway.dev/docs/latest/reference/helm/
+kgateway:
+  imagePullSecrets: []
+
+  serviceAccount:
+    create: true
+
+  controller:
+    replicaCount: 1
+    logLevel: info
+    image:
+      registry: ""
+      repository: kgateway
+      pullPolicy: ""
+      tag: ""
+    xds:
+      tls:
+        enabled: false
+    podDisruptionBudget: {}
+
+  image:
+    registry: cr.kgateway.dev/kgateway-dev
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  discoveryNamespaceSelectors: []
+
+  # Referenz auf unser GatewayParameters – nutzt YAML-Anchor für Namensgleichheit
+  gatewayClassParametersRefs: {}
+#    kgateway: *gatewayParametersRef
+
+  validation:
+    level: standard

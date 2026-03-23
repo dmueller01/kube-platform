@@ -1,0 +1,18 @@
+---
+type: valuesOnly
+project: platform-features
+
+chart:
+  name: kgateway-crds
+  repoURL: oci://cr.kgateway.dev/kgateway-dev/charts
+  version: "v2.2.1"
+
+destinationNamespace: kgateway-system
+
+valuesFile: values.yaml
+
+argocd:
+  applicationAnnotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  syncOptions:
+    - ServerSideApply=true

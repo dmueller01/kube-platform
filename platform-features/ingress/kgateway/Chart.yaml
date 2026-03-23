@@ -1,0 +1,9 @@
+apiVersion: v2
+name: kgateway-wrapper
+description: Wrapper chart for kgateway with default Gateway resource
+version: 0.1.0
+appVersion: "2.2.1"
+dependencies:
+  - name: kgateway
+    repository: oci://cr.kgateway.dev/kgateway-dev/charts
+    version: v2.2.1
