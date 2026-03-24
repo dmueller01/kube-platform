@@ -1,0 +1,21 @@
+---
+type: valuesOnly
+project: platform-core
+
+chart:
+  name: policy-reporter
+  repoURL: 'https://kyverno.github.io/policy-reporter'
+  version: '3.7.3'
+
+destinationNamespace: kyverno
+
+valuesFile: values.yaml
+
+argocd:
+  ignoreDifferences:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      jqPathExpressions:
+        - .spec.rules[].backendRefs[].group
+        - .spec.rules[].backendRefs[].kind
+

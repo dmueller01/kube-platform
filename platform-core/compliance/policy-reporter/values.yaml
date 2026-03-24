@@ -1,0 +1,257 @@
+image:
+  # -- (string) Image registry
+  registry: ghcr.io
+  # -- (string) Image repository
+  repository: kyverno/policy-reporter
+  # -- (string) Image pullPolicy
+  pullPolicy: IfNotPresent
+  # -- (string) Image tag
+  tag: ~
+
+# -- Image pullSecrets
+imagePullSecrets: []
+
+# -- Deployment replica count
+replicaCount: 1
+
+# -- The number of revisions to keep
+revisionHistoryLimit: 1
+
+rbac:
+  # -- Create RBAC resources
+  enabled: true
+
+serviceAccount:
+  create: true
+
+service:
+  enabled: true
+
+resources:
+  limits:
+    memory: 256Mi
+  requests:
+    memory: 256Mi
+    cpu: 5m
+
+networkPolicy:
+  enabled: true
+
+httproute:
+  enabled: true
+  parentRefs:
+    - group: gateway.networking.k8s.io	
+      kind: Gateway
+      name: ingress
+      namespace: kgateway-system
+      sectionName: http
+  hostnames:
+    - policy-reporter.kind-cluster.local
+
+logging:
+  # -- Enables server access logging
+  server: true
+  # -- Log encoding
+  # possible encodings are console and json
+  encoding: json
+  # -- Log level
+  # default info
+  logLevel: 0
+
+rest:
+  # -- Enables the REST API
+  enabled: false
+
+metrics:
+  # -- Enables Prometheus Metrics
+  enabled: false
+  # -- Metric Mode allows to customize labels
+  # Allowed values: detailed, simple, custom
+  mode: detailed
+  # -- List of used labels in custom mode
+  # Supported fields are: ["namespace", "rule", "policy", "report" // Report name, "kind" // resource kind, "name" // resource name, "status", "severity", "category", "source"]
+  customLabels: []
+  # -- Filter results to reduce cardinality
+  filter: {}
+#    sources:
+#      exclude: ["Trivy CIS Kube Bench"]
+#    status:
+#      exclude: ["pass", "skip"]
+
+ui:
+  # -- (bool) Enable Policy Reporter UI
+  enabled: true
+  image:
+    # -- (string) Image registry
+    registry: ghcr.io
+    # -- (string) Image repository
+    repository: kyverno/policy-reporter-ui
+    # -- (string) Image PullPolicy
+    pullPolicy: IfNotPresent
+    # -- (string) Image tag
+    tag: "2.5.1"
+
+  logging:
+    # -- Enables external api request logging
+    api: false
+    # -- Enables server access logging
+    server: false
+    # -- Log encoding
+    # possible encodings are console and json
+    encoding: json
+    # -- Log level
+    # default info
+    logLevel: 0
+
+  openIDConnect:
+    # -- Enable openID Connect authentication
+    enabled: false
+    # -- OpenID Connect Discovery URL
+    discoveryUrl: ""
+    # -- OpenID Connect Callback URL
+    callbackUrl: ""
+    # -- OpenID Connect ClientID
+    clientId: ""
+    # -- OpenID Connect ClientSecret
+    clientSecret: ""
+    # -- Optional Group Claim to map user groups to the profile
+    # groups can be used to define access control for clusters, boards and custom boards.
+    groupClaim: ""
+    # -- OpenID Connect allowed Scopes
+    scopes: []
+    # -- Skip TLS Verification
+    skipTLS: false
+    # -- TLS Certificate file path
+    certificate: ""
+    # -- Secret to rea
+    # -- Provide OpenID Connect configuration via Secret
+    # supported keys: `discoveryUrl`, `clientId`, `clientSecret`, `certificate`, `skipTLS`
+    secretRef: ""
+
+  oauth:
+    # -- Enable openID Connect authentication
+    enabled: false
+    # -- OAuth2 Provider
+    # supported: amazon, gitlab, github, apple, google, yandex, azuread
+    provider: ""
+    # -- OpenID Connect Callback URL
+    callbackUrl: ""
+    # -- OpenID Connect ClientID
+    clientId: ""
+    # -- OpenID Connect ClientSecret
+    clientSecret: ""
+    # -- OpenID Connect allowed Scopes
+    scopes: []
+    # -- Provide OpenID Connect configuration via Secret
+    # supported keys: `provider`, `clientId`, `clientSecret`
+    secretRef: ""
+
+  ## -- Default Cluster name
+  name: kind-playground
+
+  # -- Image pull secrets for image verification policies, this will define the `--imagePullSecrets` argument
+  imagePullSecrets: []
+
+  serviceAccount:
+    create: true
+
+  revisionHistoryLimit: 1
+
+  rbac:
+    # -- Create RBAC resources
+    enabled: true
+
+  httproute:
+    enabled: true
+    parentRefs:
+      - group: gateway.networking.k8s.io	
+        kind: Gateway      
+        name: ingress
+        namespace: kgateway-system
+        sectionName: http
+    hostnames:
+      - policy-reporter-ui.kind-cluster.local
+
+  networkPolicy:
+    enabled: true
+    egress:
+      - ports:
+        - protocol: TCP
+          port: 6443
+      - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+  # -- Resource constraints
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+
+plugin:
+  kyverno:
+    enabled: true
+    image:
+      # -- (string) Image registry
+      registry: ghcr.io
+      # -- (string) Image repository
+      repository: kyverno/policy-reporter/kyverno-plugin
+      # -- (string) Image PullPolicy
+      pullPolicy: IfNotPresent
+      # -- (string) Image tag
+      tag: "0.5.3"
+
+    logging:
+      # -- Enables external API request logging
+      api: false
+      # -- Enables Server access logging
+      server: false
+      # -- log encoding
+      # possible encodings are console and json
+      encoding: json
+      # -- log level
+      # default info
+      logLevel: 0
+
+    serviceAccount:
+      create: true
+
+    # -- The number of revisions to keep
+    revisionHistoryLimit: 1
+
+    rbac:
+      enabled: true
+
+    networkPolicy:
+      enabled: true
+
+    httproute:
+      enabled: true
+      parentRefs:
+        - group: gateway.networking.k8s.io	
+          kind: Gateway
+          name: ingress
+          namespace: kgateway-system
+          sectionName: http
+      # -- List of hostnames for HTTPRoute
+      hostnames:
+        - policy-reporter-kyverno-plugin.kind-cluster.local
+
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+monitoring:
+  # -- Enables the Prometheus Operator integration
+  enabled: false
