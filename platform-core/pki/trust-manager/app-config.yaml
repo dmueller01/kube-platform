@@ -1,0 +1,6 @@
+---
+type: wrapper
+project: platform-core
+
+# Helm release destination namespace.
+destinationNamespace: trust-manager

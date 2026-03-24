@@ -14,5 +14,3 @@ valuesFile: values.yaml
 argocd:
   applicationAnnotations:
     argocd.argoproj.io/sync-wave: "-10"
-  syncOptions:
-    - ServerSideApply=true

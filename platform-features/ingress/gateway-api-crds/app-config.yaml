@@ -16,5 +16,3 @@ argocd:
   automated:
     prune: false
     selfHeal: true
-  syncOptions:
-    - ServerSideApply=true

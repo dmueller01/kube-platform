@@ -1,0 +1,6 @@
+---
+type: wrapper
+project: platform-features
+
+# Helm release destination namespace.
+destinationNamespace: kgateway-system

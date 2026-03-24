@@ -11,7 +11,9 @@ projects:
     destinations:
       - server: https://kubernetes.default.svc
         namespace: '*'
-    clusterResourceWhitelist: []
+    clusterResourceWhitelist:
+      - group: '*'
+        kind: '*'
     clusterResourceBlacklist: []
   platform-features:
     description: Platform feature services (optional/enhancing capabilities)
@@ -20,7 +22,9 @@ projects:
     destinations:
       - server: https://kubernetes.default.svc
         namespace: '*'
-    clusterResourceWhitelist: []
+    clusterResourceWhitelist:
+      - group: '*'
+        kind: '*'
     clusterResourceBlacklist: []
 
 applicationsets:
@@ -28,42 +32,23 @@ applicationsets:
     namespace: argocd
     goTemplate: true
     generators:
-      # Wrapper charts: one Application per Helm chart directory (Chart.yaml exists).
       - git:
           repoURL: https://github.com/dmueller01/kube-platform.git
           revision: dev
           files:
-            - path: helm-values/platform-core/**/Chart.yaml
-            - path: helm-values/platform-core/**/charts/**/Chart.yaml
+            - path: platform-core/**/app-config.yaml
+            - path: platform-core/**/tmp/**/app-config.yaml
               exclude: true
-            # ExternalSecrets wird als values-only app über app-config.yaml behandelt.
-            - path: helm-values/platform-core/secrets-management/**/Chart.yaml
-              exclude: true
-            - path: helm-values/platform-core/**/tmp/**/Chart.yaml
-              exclude: true
-          values:
-            type: wrapper
-
-      # values-only apps: one Application per app-config.yaml.
-      - git:
-          repoURL: https://github.com/dmueller01/kube-platform.git
-          revision: dev
-          files:
-            - path: helm-values/platform-core/**/app-config.yaml
-            - path: helm-values/platform-core/**/tmp/**/app-config.yaml
-              exclude: true
-          values:
-            type: valuesOnly
 
     template:
       metadata:
-        name: 'platform-core-{{ .path.basenameNormalized }}'
+        name: 'platform-core-{{ if .name }}{{ .name }}{{ else }}{{ .path.basenameNormalized }}{{ end }}'
         labels:
           project: platform-core
       spec:
         project: platform-core
 
-        # Base: assume local chart path (overridden via templatePatch for values-only).
+        # Base: local chart path (overridden in templatePatch for valuesOnly/gitPath).
         source:
           repoURL: https://github.com/dmueller01/kube-platform.git
           targetRevision: dev
@@ -79,64 +64,96 @@ applicationsets:
             selfHeal: true
           syncOptions:
             - CreateNamespace=true
+            - ServerSideApply=true
 
-    # When generator item came from app-config.yaml we switch to a remote Helm chart
-    # and pull the values from the local repo using Argo's `$values` multi-source mechanism.
-    templatePatch: |
-      {{- if eq .values.type "valuesOnly" }}
+    # Descriptor-first mapping:
+    # - wrapper: local chart from this directory (base template)
+    # - valuesOnly: external chart + local values via `$values`
+    # - gitPath: plain git path source
+    templatePatch: &descriptorTemplatePatch |
+      {{- with .argocd }}
+      {{- with .applicationAnnotations }}
+      metadata:
+        annotations:
+          {{ toYaml . | nindent 10 }}
+      {{- end }}
+      {{- end }}
       spec:
+        {{- if .destinationNamespace }}
         destination:
           namespace: '{{ .destinationNamespace }}'
+        {{- end }}
+        {{- if eq .type "gitPath" }}
+        source:
+          repoURL: '{{ .source.repoURL }}'
+          targetRevision: '{{ .source.targetRevision }}'
+          path: '{{ .source.path }}'
+        {{- else if eq .type "valuesOnly" }}
         sources:
           - repoURL: '{{ .chart.repoURL }}'
             chart: '{{ .chart.name }}'
             targetRevision: '{{ .chart.version }}'
             helm:
               valueFiles:
-                - $values/{{ .valuesFile }}
+                - $values/{{ trimPrefix "/" .path.path }}/{{ .valuesFile }}
           - repoURL: https://github.com/dmueller01/kube-platform.git
             targetRevision: dev
             path: '{{ trimPrefix "/" .path.path }}'
             ref: values
-      {{- end }}
+        {{- else if and .source .source.repoURL .source.path .source.targetRevision }}
+        source:
+          repoURL: '{{ .source.repoURL }}'
+          targetRevision: '{{ .source.targetRevision }}'
+          path: '{{ .source.path }}'
+        {{- end }}
+        syncPolicy:
+          automated:
+            prune: {{ if and .argocd .argocd.automated }}{{ .argocd.automated.prune | default true }}{{ else }}true{{ end }}
+            selfHeal: {{ if and .argocd .argocd.automated }}{{ .argocd.automated.selfHeal | default true }}{{ else }}true{{ end }}
+          syncOptions:
+            {{- if and .argocd .argocd.syncOptionsOverride }}
+            {{- range .argocd.syncOptionsOverride }}
+            - {{ . }}
+            {{- end }}
+            {{- else }}
+            - CreateNamespace=true
+            - ServerSideApply=true
+            {{- with .argocd }}
+            {{- with .syncOptions }}
+            {{- range . }}
+            - {{ . }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+        {{- with .argocd }}
+        {{- with .ignoreDifferences }}
+        ignoreDifferences:
+          {{ toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
 
   platform-features:
     namespace: argocd
     goTemplate: true
     generators:
-      # Wrapper charts: one Application per Helm chart directory (Chart.yaml exists).
       - git:
           repoURL: https://github.com/dmueller01/kube-platform.git
           revision: dev
           files:
-            - path: helm-values/platform-features/**/Chart.yaml
-            - path: helm-values/platform-features/**/charts/**/Chart.yaml
+            - path: platform-features/**/app-config.yaml
+            - path: platform-features/**/tmp/**/app-config.yaml
               exclude: true
-            - path: helm-values/platform-features/**/tmp/**/Chart.yaml
-              exclude: true
-          values:
-            type: wrapper
-
-      # (Future) values-only apps: one Application per app-config.yaml.
-      - git:
-          repoURL: https://github.com/dmueller01/kube-platform.git
-          revision: dev
-          files:
-            - path: helm-values/platform-features/**/app-config.yaml
-            - path: helm-values/platform-features/**/tmp/**/app-config.yaml
-              exclude: true
-          values:
-            type: valuesOnly
 
     template:
       metadata:
-        name: 'platform-features-{{ .path.basenameNormalized }}'
+        name: 'platform-features-{{ if .name }}{{ .name }}{{ else }}{{ .path.basenameNormalized }}{{ end }}'
         labels:
           project: platform-features
       spec:
         project: platform-features
 
-        # Base: assume local chart path (overridden via templatePatch for values-only).
+        # Base: local chart path (overridden in templatePatch for valuesOnly/gitPath).
         source:
           repoURL: https://github.com/dmueller01/kube-platform.git
           targetRevision: dev
@@ -152,21 +169,6 @@ applicationsets:
             selfHeal: true
           syncOptions:
             - CreateNamespace=true
+            - ServerSideApply=true
 
-    templatePatch: |
-      {{- if eq .values.type "valuesOnly" }}
-      spec:
-        destination:
-          namespace: '{{ .destinationNamespace }}'
-        sources:
-          - repoURL: '{{ .chart.repoURL }}'
-            chart: '{{ .chart.name }}'
-            targetRevision: '{{ .chart.version }}'
-            helm:
-              valueFiles:
-                - $values/{{ .valuesFile }}
-          - repoURL: https://github.com/dmueller01/kube-platform.git
-            targetRevision: dev
-            path: '{{ trimPrefix "/" .path.path }}'
-            ref: values
-      {{- end }}
+    templatePatch: *descriptorTemplatePatch
