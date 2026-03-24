@@ -32,7 +32,9 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: kind-cluster-wildcard-tls
+          - group: ''
+            kind: Secret 
+            name: kind-cluster-wildcard-tls
     - name: tls-passthrough
       port: 443
       protocol: TLS
