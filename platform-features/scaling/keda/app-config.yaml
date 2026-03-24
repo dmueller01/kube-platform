@@ -1,0 +1,12 @@
+---
+type: valuesOnly
+project: platform-features
+
+chart:
+  name: keda
+  repoURL: 'https://kedacore.github.io/charts'
+  version: 2.19.0
+
+destinationNamespace: kube-system
+
+valuesFile: values.yaml

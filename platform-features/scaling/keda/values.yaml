@@ -1,0 +1,244 @@
+image:
+  keda:
+    # -- Image registry of KEDA operator
+    registry: ghcr.io
+    # -- Image name of KEDA operator
+    repository: kedacore/keda
+    # -- Image tag of KEDA operator. Optional, given app version of Helm chart is used by default
+    tag: ""
+  metricsApiServer:
+    # -- Image registry of KEDA Metrics API Server
+    registry: ghcr.io
+    # -- Image name of KEDA Metrics API Server
+    repository: kedacore/keda-metrics-apiserver
+    # -- Image tag of KEDA Metrics API Server. Optional, given app version of Helm chart is used by default
+    tag: ""
+  webhooks:
+    # -- Image registry of KEDA admission-webhooks
+    registry: ghcr.io
+    # -- Image name of KEDA admission-webhooks
+    repository: kedacore/keda-admission-webhooks
+    # -- Image tag of KEDA admission-webhooks . Optional, given app version of Helm chart is used by default
+    tag: ""
+  # -- Image pullPolicy for all KEDA components
+  pullPolicy: Always
+
+clusterName: kind-cluster
+
+clusterDomain: cluster.local
+
+crds:
+  install: true
+
+# -- Defines Kubernetes namespaces to watch to scale their workloads. Default watches all namespaces
+watchNamespace: ""
+
+imagePullSecrets: []
+
+networkPolicy:
+  enabled: false
+  flavor: "kubernetes"
+  # -- Allow use of extra egress rules for kubernetes network policies
+  kubernetes:
+    operator:
+      extraEgressRules: []
+    metricsServer:
+      extraEgressRules: []
+    webhooks:
+      extraEgressRules: []
+
+operator:
+  revisionHistoryLimit: 1
+
+metricsServer:
+  revisionHistoryLimit: 1
+
+webhooks:
+  enabled: true
+  revisionHistoryLimit: 1
+
+  # -- [Failure policy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy) to use with KEDA admission webhooks
+  failurePolicy: Ignore
+
+podDisruptionBudget:
+  # -- Capability to configure [Pod Disruption Budget]
+  operator: {}
+    #  minAvailable: 1
+    #  maxUnavailable: 1
+
+  # -- Capability to configure [Pod Disruption Budget]
+  metricServer: {}
+    #  minAvailable: 1
+    #  maxUnavailable: 1
+
+  # -- Capability to configure [Pod Disruption Budget]
+  webhooks: {}
+    #  minAvailable: 1
+    #  maxUnavailable: 1
+rbac:
+  # -- Specifies whether RBAC should be used
+  create: true
+  
+  controlPlaneServiceAccountsNamespace: kube-system
+  
+serviceAccount:
+  operator:
+    create: true
+    name: keda-operator
+  metricServer:
+    create: true
+  webhooks:
+    create: true
+    name: keda-webhook
+
+logging:
+  operator:
+    # allowed values: `debug`, `info`, `error`, or an integer value greater than 0, specified as string
+    level: info
+    format: json
+
+  metricServer:
+    # allowed values: `0` for info, `4` for debug, or an integer value greater than 0, specified as string
+    level: 0
+    # allowed values: 'DEBUG','INFO','WARN','ERROR','ALERT','EMERG'
+    stderrthreshold: ERROR
+    # allowed values: `debug`, `info`, `error`, or an integer value greater than 0, specified as string
+    zapLevel: info
+    # allowed values: `json` or `console`
+    zapEncoder: json
+
+  webhooks:
+    # allowed values: `debug`, `info`, `error`, or an integer value greater than 0, specified as string
+    level: info
+    # allowed values: `json` or `console`
+    format: json
+
+resources:
+  # -- Manage [resource request & limits] of KEDA operator pod
+  operator:
+    limits:
+      cpu: 1
+      memory: 1000Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  # -- Manage [resource request & limits] of KEDA metrics apiserver pod
+  metricServer:
+    limits:
+      cpu: 1
+      memory: 1000Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  # -- Manage [resource request & limits] of KEDA admission webhooks pod
+  webhooks:
+    limits:
+      cpu: 1
+      memory: 1000Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+
+prometheus:
+  metricServer:
+    # -- Enable metric server Prometheus metrics expose
+    enabled: false
+    serviceMonitor:
+      enabled: false
+      scheme: http
+      # -- TLS configuration for scraping metrics
+      tlsConfig: {}
+        # caFile: /etc/prom-certs/root-cert.pem
+        # certFile: /etc/prom-certs/cert-chain.pem
+        # insecureSkipVerify: true
+        # keyFile: /etc/prom-certs/key.pem
+  operator:
+    # -- Enable KEDA Operator prometheus metrics expose
+    enabled: false
+    serviceMonitor:
+      enabled: false
+      # -- HTTP scheme used for scraping. Defaults to `http`
+      scheme: http
+      # -- TLS configuration for scraping metrics
+      tlsConfig: {}
+        # caFile: /etc/prom-certs/root-cert.pem
+        # certFile: /etc/prom-certs/cert-chain.pem
+        # insecureSkipVerify: true
+        # keyFile: /etc/prom-certs/key.pem
+    prometheusRules:
+      enabled: false
+      alerts: []
+        # - alert: KedaScalerErrors
+        #   annotations:
+        #     description: Keda scaledObject {{ $labels.scaledObject }} is experiencing errors with {{ $labels.scaler }} scaler
+        #     summary: Keda Scaler {{ $labels.scaler }} Errors
+        #   expr: sum by ( scaledObject , scaler) (rate(keda_metrics_adapter_scaler_errors[2m]))  > 0
+        #   for: 2m
+        #   labels:
+  webhooks:
+    enabled: false
+    serviceMonitor:
+      enabled: false
+      # -- HTTP scheme used for scraping. Defaults to `http`
+      scheme: http
+      # -- TLS configuration for scraping metrics
+      tlsConfig: {}
+        # caFile: /etc/prom-certs/root-cert.pem
+        # certFile: /etc/prom-certs/cert-chain.pem
+        # insecureSkipVerify: true
+        # keyFile: /etc/prom-certs/key.pem
+    prometheusRules:
+      enabled: false
+      alerts: []
+
+opentelemetry:
+  collector:
+    # -- Uri of OpenTelemetry Collector to push telemetry to
+    uri: ""
+  operator:
+    # -- Enable pushing metrics to an OpenTelemetry Collector for operator
+    enabled: false
+
+certificates:
+  # -- Enables the self generation for KEDA TLS certificates inside KEDA operator
+  autoGenerated: true
+  # -- Secret name to be mounted with KEDA TLS certificates
+  secretName: kedaorg-certs
+  # -- Path where KEDA TLS certificates are mounted
+  mountPath: /certs
+  certManager:
+    enabled: true
+
+permissions:
+  metricServer:
+    restrict:
+      # -- Restrict Secret Access for Metrics Server
+      secret: false
+  operator:
+    restrict:
+      # -- Restrict Secret Access for KEDA operator
+      # if true, KEDA operator will be able to read only secrets in {{ .Release.Namespace }} namespace
+      secret: false
+      # -- Array of strings denoting what secrets the KEDA operator will be able to read, this takes into account
+      # also the configured `watchNamespace`.
+      # the default is an empty array -> no restriction on the secret name
+      namesAllowList: []
+      # -- Creates roles and rolebindings from namespaced service accounts in the array which allow the KEDA operator
+      # to request service account tokens for use with the boundServiceAccountToken trigger source.
+      # If the namespace does not exist, this will cause the helm chart installation to fail.
+      serviceAccountTokenCreationRoles: []
+      # - name: myServiceAccount
+      #   namespace: myServiceAccountNamespace
+      # -- Allow Keda to access all Service Token for KEDA operator
+      allowAllServiceAccountTokenCreation: false
+
+# -- Array of extra K8s manifests to deploy
+extraObjects: []
+  # - apiVersion: keda.sh/v1alpha1
+  #   kind: ClusterTriggerAuthentication
+  #   metadata:
+  #     name: aws-credentials
+  #     namespace: keda
+  #   spec:
+  #     podIdentity:
+  #       provider: aws-eks
