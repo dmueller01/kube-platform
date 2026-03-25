@@ -1,0 +1,15 @@
+---
+type: valuesOnly
+project: platform-core
+
+# External Helm chart used for this values-only app.
+chart:
+  name: trivy-operator
+  repoURL: 'https://aquasecurity.github.io/helm-charts/'
+  version: "0.32.1"
+
+# Helm release destination namespace.
+destinationNamespace: trivy
+
+# Which values file to apply from this directory.
+valuesFile: values.yaml

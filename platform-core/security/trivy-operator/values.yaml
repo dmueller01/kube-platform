@@ -1,0 +1,138 @@
+---
+global:
+  image:
+    registry: ""
+
+# -- targetNamespace defines where you want trivy-operator to operate. By
+# default, it's a blank string to select all namespaces, but you can specify
+# another namespace, or a comma separated list of namespaces.
+targetNamespaces: ""
+
+# -- excludeNamespaces is a comma separated list of namespaces (or glob patterns)
+# to be excluded from scanning. Only applicable in the all namespaces install
+# mode, i.e. when the targetNamespaces values is a blank string.
+excludeNamespaces: ""
+
+operator:
+  replicas: 1
+
+  # -- number of old history to retain to allow rollback (if not set, default Kubernetes value is set to 10)
+  revisionHistoryLimit: 1
+
+  # -- scanJobTTL the set automatic cleanup time after the job is completed
+  scanJobTTL: ""
+
+  # -- scanSecretTTL set an automatic cleanup for scan job secrets
+  scanSecretTTL: ""
+
+  # -- scanJobTimeout the length of time to wait before giving up on a scan job
+  scanJobTimeout: 5m
+
+image:
+  registry: "mirror.gcr.io"
+  repository: "aquasec/trivy-operator"
+  # -- tag is an override of the image tag, which is by default set by the
+  # appVersion field in Chart.yaml.
+  tag: ""
+  pullSecrets: []
+
+serviceMonitor:
+  # -- enabled determines whether a serviceMonitor should be deployed
+  enabled: false
+  # -- The namespace where Prometheus expects to find service monitors
+  namespace: ~
+  # -- Interval at which metrics should be scraped. If not specified Prometheus’ global scrape interval is used.
+  interval: ~
+  # -- Additional annotations for the serviceMonitor
+  annotations: {}
+  # -- Additional labels for the serviceMonitor
+  labels: {}
+  # -- HonorLabels chooses the metric’s labels on collisions with target labels
+  honorLabels: true
+  # -- EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.
+  endpointAdditionalProperties: {}
+
+trivyOperator:
+  # -- vulnerabilityReportsPlugin the name of the plugin that generates vulnerability reports `Trivy`
+  vulnerabilityReportsPlugin: "Trivy"
+  # -- configAuditReportsPlugin the name of the plugin that generates config audit reports.
+  configAuditReportsPlugin: "Trivy"
+  # -- scanJobCompressLogs control whether scanjob output should be compressed or plain
+  scanJobCompressLogs: true
+  # -- scanJobsInSameNamespace control whether to run vulnerability scan jobs in same namespace of workload
+  scanJobsInSameNamespace: false
+
+  # -- skipInitContainers when this flag is set to true, the initContainers will be skipped for the scanner and node collector pods
+  skipInitContainers: false
+
+  # -- reportRecordFailedChecksOnly flag is to record only failed checks on misconfiguration reports (config-audit and rbac assessment)
+  reportRecordFailedChecksOnly: true
+
+  # -- skipResourceByLabels comma-separated labels keys which trivy-operator will skip scanning on resources with matching labels
+  skipResourceByLabels: ""
+
+  # -- policiesConfig Custom Rego Policies to be used by the config audit scanner
+  # See https://github.com/aquasecurity/trivy-operator/blob/main/docs/tutorials/writing-custom-configuration-audit-policies.md for more details.
+  policiesConfig: ""
+
+  # -- excludeImages is comma separated glob patterns for excluding images from scanning.
+  # Example: pattern: `k8s.gcr.io/*/*` will exclude image: `k8s.gcr.io/coredns/coredns:v1.8.0`.
+  excludeImages: ""
+
+trivy:
+  # -- createConfig indicates whether to create config objects
+  createConfig: true
+  image:
+    registry: mirror.gcr.io
+    repository: aquasec/trivy
+    tag: 0.69.3
+    imagePullSecret: ~
+
+  # -- mode is the Trivy client mode. Either Standalone or ClientServer. Depending
+  # on the active mode other settings might be applicable or required.
+  mode: Standalone
+
+  # -- additionalVulnerabilityReportFields is a comma separated list of additional fields which
+  # can be added to the VulnerabilityReport. Supported parameters: Description, Links, CVSS, Target, Class, PackagePath and PackageType
+  additionalVulnerabilityReportFields: ""
+
+  # -- severity is a comma separated list of severity levels reported by Trivy.
+  severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+
+  # -- slow this flag is to use less CPU/memory for scanning though it takes more time than normal scanning. It fits small-footprint
+  slow: true
+
+  # -- resources resource requests and limits for scan job containers
+  resources:
+    requests:
+      cpu: 100m
+    limits:
+      memory: 500M
+
+  # -- The Flag is the list of supported kinds separated by comma delimiter to be scanned by the config audit scanner
+  #
+  supportedConfigAuditKinds: "Workload,Service,Role,ClusterRole,NetworkPolicy,Ingress,LimitRange,ResourceQuota"
+
+  server:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+    replicas: 1
+
+rbac:
+  create: true
+
+serviceAccount:
+  # -- Specifies whether a service account should be created.
+  create: true
+
+resources:
+  limits:
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 512Mi
