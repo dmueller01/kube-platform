@@ -349,7 +349,14 @@ plugin:
           port: 53
         - protocol: TCP
           port: 53
-      ingress: []
+      ingress:
+        - from:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: policy-reporter-ui
+          ports:
+          - protocol: TCP
+            port: 8080
 
     # -- Resource constraints
     resources:
