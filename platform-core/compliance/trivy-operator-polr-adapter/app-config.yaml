@@ -1,0 +1,16 @@
+---
+type: valuesOnly
+project: platform-core
+
+chart:
+  name: trivy-operator-polr-adapter
+  repoURL: https://fjogeleit.github.io/trivy-operator-polr-adapter
+  version: "0.11.2"
+
+destinationNamespace: trivy
+
+valuesFile: values.yaml
+
+argocd:
+  applicationAnnotations:
+    argocd.argoproj.io/sync-wave: "10"

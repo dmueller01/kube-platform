@@ -1,0 +1,82 @@
+---
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: fjogeleit/trivy-operator-polr-adapter
+  pullPolicy: IfNotPresent
+  tag: "0.11.2"
+
+crds:
+  # PolicyReport CRDs kommen bereits ueber Kyverno/Policy Reporter.
+  install: false
+
+openreports:
+  enabled: false
+  install: false
+
+adapters:
+  vulnerabilityReports:
+    enabled: true
+    timeout: 2
+    applyLabels: []
+  clusterVulnerabilityReports:
+    enabled: true
+    timeout: 2
+    applyLabels: []
+  configAuditReports:
+    enabled: true
+    timeout: 2
+    applyLabels: []
+  cisKubeBenchReports:
+    enabled: false
+    timeout: 2
+    applyLabels: []
+  complianceReports:
+    enabled: false
+    timeout: 2
+    applyLabels: []
+  rbacAssessmentReports:
+    enabled: false
+    timeout: 2
+    applyLabels: []
+  exposedSecretReports:
+    enabled: false
+    timeout: 2
+    applyLabels: []
+  infraAssessmentReports:
+    enabled: false
+    timeout: 2
+    applyLabels: []
+  clusterInfraAssessmentReports:
+    enabled: false
+    timeout: 2
+    applyLabels: []
+
+rbac:
+  enabled: true
+
+serviceAccount:
+  create: true
+
+podSecurityContext:
+  fsGroup: 1234
+
+securityContext:
+  runAsUser: 1234
+  runAsNonRoot: true
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+resources:
+  limits:
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
