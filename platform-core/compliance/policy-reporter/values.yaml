@@ -232,6 +232,14 @@ plugin:
 
     networkPolicy:
       enabled: true
+      ingress: 
+        - from:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: policy-reporter-ui
+          ports:
+          - protocol: TCP
+            port: 8080
 
     httproute:
       enabled: true
@@ -251,6 +259,105 @@ plugin:
       requests:
         cpu: 100m
         memory: 128Mi
+
+  trivy:
+    enabled: true
+    image:
+      registry: ghcr.io
+      repository: kyverno/policy-reporter/trivy-plugin
+      pullPolicy: IfNotPresent
+        # Defaults to `Chart.AppVersion` if omitted
+      tag: "0.4.12"
+
+    cli:
+      image:
+        registry: ghcr.io
+        repository: aquasecurity/trivy
+        pullPolicy: IfNotPresent
+          # Defaults to `Chart.AppVersion` if omitted
+        tag: "0.63.0"
+
+    # -- Deployment replica count
+    replicaCount: 1
+
+    logging:
+      api: false
+      server: false
+      encoding: json
+      # -- log level
+      # default info
+      logLevel: 0
+
+    policyReporter:
+      # -- Skip TLS Verification
+      skipTLS: false
+      # -- TLS Certificate file path
+      certificate: ""
+      # -- Secret to read the API configuration from
+      # supports `host`, `certificate`, `skipTLS`, `username`, `password` key
+      secretRef: ""
+
+    imagePullSecrets: []
+
+
+    serviceAccount:
+      # -- Create ServiceAccount
+      create: true
+
+    revisionHistoryLimit: 1
+
+    rbac:
+      enabled: true
+
+    ingress:
+      # -- Create ingress resource.
+      enabled: false
+      # -- Ingress class name.
+      className: ""
+      # -- Ingress labels.
+      labels: {}
+      # -- Ingress annotations.
+      annotations: {}
+        # kubernetes.io/ingress.class: nginx
+        # kubernetes.io/tls-acme: "true"
+      # -- List of ingress host configurations.
+      hosts: []
+      #  - host: chart-example.local
+      #    paths:
+      #      - path: /
+      #        pathType: ImplementationSpecific
+      # -- List of ingress TLS configurations.
+      tls: []
+      #  - secretName: chart-example-tls
+      #    hosts:
+      #      - chart-example.local
+
+    networkPolicy:
+      enabled: true
+      egress:
+      - ports:
+        - protocol: TCP
+          port: 6443
+        - protocol: TCP
+          port: 443
+      - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+      ingress: []
+
+    # -- Resource constraints
+    resources:
+      limits:
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 512Mi
 
 monitoring:
   # -- Enables the Prometheus Operator integration
