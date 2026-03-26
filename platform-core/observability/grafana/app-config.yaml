@@ -1,0 +1,20 @@
+---
+type: valuesOnly
+project: platform-core
+
+chart:
+  name: grafana
+  repoURL: https://grafana.github.io/helm-charts
+  version: "10.5.15"
+
+destinationNamespace: monitoring
+
+valuesFile: values.yaml
+
+argocd:
+  ignoreDifferences:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      jqPathExpressions:
+        - .spec.rules[].backendRefs[].group
+        - .spec.rules[].backendRefs[].kind
