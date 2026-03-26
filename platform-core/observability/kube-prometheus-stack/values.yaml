@@ -1,0 +1,60 @@
+---
+defaultRules:
+  create: true
+
+alertmanager:
+  enabled: false
+  alertmanagerSpec:
+    replicas: 1
+    retention: 120h
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
+
+grafana:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 24h
+    walCompression: true
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 8Gi
+
+prometheusOperator:
+  tls:
+    enabled: true
+    tlsMinVersion: VersionTLS13
+  admissionWebhooks:
+    enabled: true
+    patch:
+      enabled: true
+    certManager:
+      enabled: true
+      issuerRef:
+        name: ca-cluster-issuer
+        kind: ClusterIssuer
+
+kube-state-metrics:
+  selfMonitor:
+    enabled: true
+
+prometheus-node-exporter:
+  prometheus:
+    monitor:
+      enabled: true

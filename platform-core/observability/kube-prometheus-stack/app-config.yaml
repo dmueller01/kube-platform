@@ -1,0 +1,15 @@
+---
+type: valuesOnly
+project: platform-core
+
+# External Helm chart used for this values-only app.
+chart:
+  name: kube-prometheus-stack
+  repoURL: https://prometheus-community.github.io/helm-charts
+  version: "82.14.1"
+
+# Helm release destination namespace.
+destinationNamespace: monitoring
+
+# Which values file to apply from this directory.
+valuesFile: values.yaml
