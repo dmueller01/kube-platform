@@ -22,6 +22,15 @@ grafana:
 kubeEtcd:
   enabled: false
 
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeProxy:
+  enabled: false
+
 prometheus:
   prometheusSpec:
     replicas: 1

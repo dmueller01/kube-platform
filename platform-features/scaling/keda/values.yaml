@@ -142,9 +142,9 @@ resources:
 prometheus:
   metricServer:
     # -- Enable metric server Prometheus metrics expose
-    enabled: false
+    enabled: true
     serviceMonitor:
-      enabled: false
+      enabled: true
       scheme: http
       # -- TLS configuration for scraping metrics
       tlsConfig: {}
@@ -154,9 +154,9 @@ prometheus:
         # keyFile: /etc/prom-certs/key.pem
   operator:
     # -- Enable KEDA Operator prometheus metrics expose
-    enabled: false
+    enabled: true
     serviceMonitor:
-      enabled: false
+      enabled: true
       # -- HTTP scheme used for scraping. Defaults to `http`
       scheme: http
       # -- TLS configuration for scraping metrics
@@ -176,9 +176,9 @@ prometheus:
         #   for: 2m
         #   labels:
   webhooks:
-    enabled: false
+    enabled: true
     serviceMonitor:
-      enabled: false
+      enabled: true
       # -- HTTP scheme used for scraping. Defaults to `http`
       scheme: http
       # -- TLS configuration for scraping metrics

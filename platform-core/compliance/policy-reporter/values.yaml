@@ -36,6 +36,18 @@ resources:
 
 networkPolicy:
   enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+              app.kubernetes.io/instance: platform-core-kube-prometh-prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
 
 httproute:
   enabled: true
@@ -64,7 +76,7 @@ rest:
 
 metrics:
   # -- Enables Prometheus Metrics
-  enabled: false
+  enabled: true
   # -- Metric Mode allows to customize labels
   # Allowed values: detailed, simple, custom
   mode: detailed
@@ -368,4 +380,6 @@ plugin:
 
 monitoring:
   # -- Enables the Prometheus Operator integration
-  enabled: false
+  enabled: true
+  labels:
+    release: platform-core-kube-prometheus-stack

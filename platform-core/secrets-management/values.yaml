@@ -66,11 +66,68 @@ metrics:
     secure:
       enabled: true
       certDir: /etc/metrics-tls
-      certFile: /etc/metrics-tls/tls.crt
-      keyFile: /etc/metrics-tls/tls.key
+      certFile: tls.crt
+      keyFile: tls.key
   service:
     # -- Enable for ServiceMonitor (Prometheus scrapes via Service DNS)
     enabled: true
+
+extraVolumes:
+  - name: metrics-tls
+    secret:
+      secretName: platform-core-secrets-management-external-secrets-metrics-tls
+
+extraVolumeMounts:
+  - name: metrics-tls
+    mountPath: /etc/metrics-tls
+    readOnly: true
+
+extraObjects:
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: platform-core-secrets-management-external-secrets-metrics
+      namespace: external-secrets
+      labels:
+        app.kubernetes.io/instance: platform-core-secrets-management
+        app.kubernetes.io/name: external-secrets
+        release: platform-core-kube-prometheus-stack
+    spec:
+      namespaceSelector:
+        matchNames:
+          - external-secrets
+      selector:
+        matchLabels:
+          app.kubernetes.io/instance: platform-core-secrets-management
+          app.kubernetes.io/name: external-secrets
+      endpoints:
+        - port: metrics
+          path: /metrics
+          scheme: https
+          tlsConfig:
+            ca:
+              configMap:
+                name: global-ca-bundle
+                key: ca-bundle.crt
+            serverName: platform-core-secrets-management-external-secrets-metrics.external-secrets.svc
+            insecureSkipVerify: false
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: platform-core-secrets-management-external-secrets-metrics
+      namespace: external-secrets
+      labels:
+        app.kubernetes.io/instance: platform-core-secrets-management
+        app.kubernetes.io/name: external-secrets
+    spec:
+      secretName: platform-core-secrets-management-external-secrets-metrics-tls
+      issuerRef:
+        name: ca-cluster-issuer
+        kind: ClusterIssuer
+      dnsNames:
+        - platform-core-secrets-management-external-secrets-metrics
+        - platform-core-secrets-management-external-secrets-metrics.external-secrets.svc
+        - platform-core-secrets-management-external-secrets-metrics.external-secrets.svc.cluster.local
 
 # -- Pod disruption budget - for more details see https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
 podDisruptionBudget:
@@ -112,7 +169,8 @@ webhook:
     enabled: false
 
     # -- Additional labels
-    additionalLabels: {}
+    additionalLabels:
+      release: platform-core-kube-prometheus-stack
 
     # --  Interval to scrape metrics
     interval: 30s
@@ -130,7 +188,7 @@ webhook:
         keyFile: /tmp/certs/tls.key
     service:
       # -- Enable for ServiceMonitor
-      enabled: false
+      enabled: true
 
       # -- Metrics service port to scrape
       port: 8080
@@ -189,9 +247,11 @@ certController:
   serviceMonitor:
     # -- Specifies whether to create a ServiceMonitor resource for collecting Prometheus metrics
     enabled: false
+    additionalLabels:
+      release: platform-core-kube-prometheus-stack
 
   metrics:
     service:
       # -- Enable if you use another monitoring tool than Prometheus to scrape the metrics
-      enabled: false
+      enabled: true
 

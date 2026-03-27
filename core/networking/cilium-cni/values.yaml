@@ -76,7 +76,7 @@ hubble:
       # Enterprise only, refer to Event Export Monitoring docs
       #- flow_export
     serviceMonitor:
-      enabled: false  # CRDs would need to be there before
+      enabled: true
     enableOpenMetrics: true
   # Static file export for Fluent Bit to tail on each node
   export:
@@ -100,7 +100,7 @@ hubble:
 prometheus:
   enabled: true  # Exposes metrics on port 9962, does NOT install Prometheus
   serviceMonitor:
-    enabled: false  # Set to true if you want Cilium to create ServiceMonitor CRDs for your existing Prometheus
+    enabled: true
 
 # Operator Configuration
 operator:

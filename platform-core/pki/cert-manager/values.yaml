@@ -34,7 +34,7 @@ cert-manager:
 
     servicemonitor:
       # Create a ServiceMonitor to add cert-manager to Prometheus.
-      enabled: false
+      enabled: true
     # Note that you cannot enable both PodMonitor and ServiceMonitor as they are mutually exclusive. Enabling both will result in an error.
     podmonitor:
       # Create a PodMonitor to add cert-manager to Prometheus.

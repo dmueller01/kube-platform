@@ -17,24 +17,24 @@ kyverno:
 
   admissionController:
     serviceMonitor:
-      enabled: false
+      enabled: true
     podAnnotations:
       "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
 
   reportsController:
     serviceMonitor:
-      enabled: false
+      enabled: true
     podAnnotations:
       "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
 
   cleanupController:
     serviceMonitor:
-      enabled: false
+      enabled: true
     podAnnotations:
       "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
 
   backgroundController:
     serviceMonitor:
-      enabled: false
+      enabled: true
     podAnnotations:
       "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
