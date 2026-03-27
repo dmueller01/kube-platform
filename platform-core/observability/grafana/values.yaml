@@ -1,6 +1,9 @@
 ---
 replicas: 1
 
+initChownData:
+  enabled: false
+
 persistence:
   enabled: true
   type: pvc
