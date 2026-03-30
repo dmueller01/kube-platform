@@ -75,9 +75,9 @@ cert-manager:
     resources:
       requests:
         cpu: 10m
-        memory: 32Mi
+        memory: 256Mi
       limits:
-        memory: 32Mi
+        memory: 256Mi
 
   startupapicheck:
     # Enables the startup api check.
