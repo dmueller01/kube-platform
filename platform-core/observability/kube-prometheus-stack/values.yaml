@@ -1,4 +1,7 @@
 ---
+fullnameOverride: prometheus
+nameOverride: prometheus
+cleanPrometheusOperatorObjectNames: true
 defaultRules:
   create: true
 
@@ -32,6 +35,11 @@ kubeProxy:
   enabled: false
 
 prometheus:
+  fullnameOverride: prometheus
+  nameOverride: prometheus
+  serviceAccount:
+    create: true
+    name: prometheus
   prometheusSpec:
     replicas: 1
     retention: 24h
@@ -46,6 +54,8 @@ prometheus:
               storage: 8Gi
 
 prometheusOperator:
+  fullnameOverride: prometheus-operator
+  revisionHistoryLimit: 1
   tls:
     enabled: true
     tlsMinVersion: VersionTLS13
@@ -59,11 +69,23 @@ prometheusOperator:
         name: ca-cluster-issuer
         kind: ClusterIssuer
 
-kube-state-metrics:
-  selfMonitor:
-    enabled: true
-
 prometheus-node-exporter:
+  fullnameOverride: node-exporter
   prometheus:
     monitor:
       enabled: true
+
+kube-state-metrics:
+  fullnameOverride: kube-state-metrics
+  prometheus:
+    monitor:
+      enabled: true
+  resources:
+    limits:
+     memory: 64Mi
+    requests:
+     cpu: 10m
+     memory: 32Mi
+  revisionHistoryLimit: 1
+  selfMonitor:
+    enabled: true
