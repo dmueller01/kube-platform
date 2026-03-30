@@ -125,6 +125,12 @@ trivy:
 
     replicas: 1
 
+compliance:
+  # Report details (incl. affected resources) instead of only totals.
+  reportType: all
+  # Increase to see more failing resources per control check.
+  failEntriesLimit: 50
+
 rbac:
   create: true
 
