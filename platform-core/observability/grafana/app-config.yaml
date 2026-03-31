@@ -4,8 +4,8 @@ project: platform-core
 
 chart:
   name: grafana
-  repoURL: https://grafana.github.io/helm-charts
-  version: "10.5.15"
+  repoURL: https://grafana-community.github.io/helm-charts
+  version: "11.3.6"
 
 destinationNamespace: monitoring
 
